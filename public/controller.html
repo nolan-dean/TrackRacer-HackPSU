@@ -15,11 +15,24 @@
     #start-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.95);
       display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100;
+      padding: 20px; text-align: center;
     }
-    button {
-      padding: 22px 45px; font-size: 24px; border-radius: 14px;
+    h2 { color: #00e676; margin-bottom: 5px; }
+    .class-container {
+      display: flex; gap: 12px; margin: 20px 0; width: 100%; max-width: 450px;
+    }
+    .class-btn {
+      flex: 1; padding: 15px 10px; font-size: 16px; border-radius: 10px;
+      background: #222; border: 2px solid #444; color: #fff; cursor: pointer;
+      font-weight: bold; transition: 0.2s;
+    }
+    .class-btn.selected {
+      border-color: #00e676; background: rgba(0,230,118,0.15); color: #00e676;
+    }
+    #launch-btn {
+      padding: 18px 40px; font-size: 20px; border-radius: 12px;
       background: #00e676; border: none; font-weight: bold; cursor: pointer; color: #111;
-      box-shadow: 0 4px 15px rgba(0,230,118,0.4);
+      box-shadow: 0 4px 15px rgba(0,230,118,0.4); margin-top: 10px;
     }
     #gas-pedal {
       display: none; position: fixed; right: 30px; bottom: 30px;
@@ -47,43 +60,96 @@
   <div id="rotate-warning">📱 Please rotate your phone to landscape mode to access the cockpit!</div>
 
   <div id="start-overlay">
-    <h2>TrackRacer Cockpit</h2>
-    <p style="color: #aaa; margin-bottom: 25px;">Turn phone sideways & tap to activate steering</p>
-    <button id="start-btn">Launch Race</button>
+    <h2>UberRacer Cockpit</h2>
+    <p style="color: #aaa; font-size: 14px; margin-bottom: 10px;">Select your ride class:</p>
+    
+    <div class="class-container">
+      <button class="class-btn selected" data-class="Small">Small<br><span style="font-size:11px; color:#aaa;">Agile / Fast</span></button>
+      <button class="class-btn" data-class="Large">Large<br><span style="font-size:11px; color:#aaa;">XL / Tank</span></button>
+      <button class="class-btn" data-class="Bougie">Bougie<br><span style="font-size:11px; color:#aaa;">Black / Pro</span></button>
+    </div>
+
+    <button id="launch-btn">Launch Shift</button>
   </div>
 
   <div id="gas-pedal">▲</div>
 
   <script>
     const socket = io();
-    const btn = document.getElementById('start-btn');
+    const launchBtn = document.getElementById('launch-btn');
     const overlay = document.getElementById('start-overlay');
     const gasPedal = document.getElementById('gas-pedal');
+    const classButtons = document.querySelectorAll('.class-btn');
 
+    let selectedClass = 'Small';
     let myPlayerId = null;
-    let targetX = 0, zPos = 0, isAccelerating = false;
+    let posX = 0, posZ = 0, rotationAngle = 0, isAccelerating = false;
+    let steeringInput = 0;
     const cars = {};
 
-    // Three.js Setup on Phone with Chase Camera
+    // Handle vehicle class selection UI
+    classButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        classButtons.forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedClass = btn.getAttribute('data-class');
+      });
+    });
+
+    // Three.js Setup on Phone
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1a1a);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 2, 4); // Chase cam position
+    camera.position.set(0, 3, 5);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     document.body.appendChild(renderer.domElement);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
     dirLight.position.set(10, 20, 10);
     scene.add(dirLight);
 
-    const gridHelper = new THREE.GridHelper(100, 50, 0x00ffff, 0x444444);
-    gridHelper.position.z = -20;
+    const gridHelper = new THREE.GridHelper(300, 100, 0x00ffff, 0x444444);
     scene.add(gridHelper);
+
+    // Factory function to build distinct 3D car models based on class
+    function createCarModel(carClass) {
+      const group = new THREE.Group();
+
+      if (carClass === 'Small') {
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x00e676, roughness: 0.3 });
+        const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 2.0), bodyMat);
+        mainBody.position.y = 0.3;
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.4, 1.1), bodyMat);
+        cabin.position.set(0, 0.7, -0.1);
+        group.add(mainBody, cabin);
+
+      } else if (carClass === 'Large') {
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2979ff, roughness: 0.4 });
+        const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.8, 2.6), bodyMat);
+        mainBody.position.y = 0.5;
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.6, 1.8), bodyMat);
+        cabin.position.set(0, 1.0, -0.1);
+        group.add(mainBody, cabin);
+
+      } else if (carClass === 'Bougie') {
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9, roughness: 0.1 });
+        const accentMat = new THREE.MeshStandardMaterial({ color: 0xffd700 });
+        const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 2.8), bodyMat);
+        mainBody.position.y = 0.3;
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.35, 1.4), bodyMat);
+        cabin.position.set(0, 0.65, -0.2);
+        const underglow = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.05, 2.85), accentMat);
+        underglow.position.y = 0.1;
+        group.add(mainBody, cabin, underglow);
+      }
+
+      return group;
+    }
 
     socket.on('assigned-player', (data) => {
       myPlayerId = data.playerId;
@@ -93,38 +159,34 @@
       for (let id in players) {
         if (!cars[id]) {
           const pData = players[id];
-          const geometry = new THREE.BoxGeometry(1, 0.8, 2);
-          const material = new THREE.MeshStandardMaterial({ color: pData.color || 0xff1744 });
-          const carMesh = new THREE.Mesh(geometry, material);
-          carMesh.position.set(0, 0.4, 0);
-          scene.add(carMesh);
-          cars[id] = { mesh: carMesh, targetX: pData.targetX, zPos: pData.zPos, accelerating: pData.accelerating };
+          const carGroup = createCarModel(pData.carClass || 'Small');
+          scene.add(carGroup);
+          cars[id] = { group: carGroup, posX: pData.posX || 0, posZ: pData.posZ || 0, rotationAngle: pData.rotationAngle || 0, accelerating: false };
         }
       }
     });
 
     socket.on('update-car-state', (data) => {
       if (cars[data.playerId]) {
-        cars[data.playerId].targetX = data.targetX;
-        cars[data.playerId].zPos = data.zPos;
+        cars[data.playerId].posX = data.posX;
+        cars[data.playerId].posZ = data.posZ;
+        cars[data.playerId].rotationAngle = data.rotationAngle;
         cars[data.playerId].accelerating = data.accelerating;
       } else {
-        const geometry = new THREE.BoxGeometry(1, 0.8, 2);
-        const material = new THREE.MeshStandardMaterial({ color: 0xff1744 });
-        const carMesh = new THREE.Mesh(geometry, material);
-        scene.add(carMesh);
-        cars[data.playerId] = { mesh: carMesh, targetX: data.targetX, zPos: data.zPos, accelerating: data.accelerating };
+        const carGroup = createCarModel(data.carClass || 'Small');
+        scene.add(carGroup);
+        cars[data.playerId] = { group: carGroup, posX: data.posX, posZ: data.posZ, rotationAngle: data.rotationAngle, accelerating: data.accelerating };
       }
     });
 
     socket.on('player-left', (data) => {
       if (cars[data.playerId]) {
-        scene.remove(cars[data.playerId].mesh);
+        scene.remove(cars[data.playerId].group);
         delete cars[data.playerId];
       }
     });
 
-    btn.addEventListener('click', async () => {
+    launchBtn.addEventListener('click', async () => {
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         try {
           const response = await DeviceOrientationEvent.requestPermission();
@@ -139,12 +201,13 @@
 
       overlay.style.display = 'none';
       gasPedal.style.display = 'flex';
-      socket.emit('join-game');
+      
+      // Pass the selected car class when joining the game
+      socket.emit('join-game', { carClass: selectedClass });
 
       window.addEventListener('deviceorientation', (e) => {
         let steeringVal = e.beta || 0; 
-        let mappedX = (steeringVal / 35) * 5;
-        targetX = Math.max(-6, Math.min(6, mappedX));
+        steeringInput = Math.max(-1, Math.min(1, steeringVal / 25));
       }, true);
     });
 
@@ -156,45 +219,56 @@
     function animate() {
       requestAnimationFrame(animate);
 
+      // Unique stats handling per vehicle class
+      let speed = 0.3;
+      let turnSpeed = 0.04;
+      if (selectedClass === 'Large') { speed = 0.22; turnSpeed = 0.03; } // Slower, wider turns
+      if (selectedClass === 'Bougie') { speed = 0.36; turnSpeed = 0.045; } // Faster top speed
+
       if (isAccelerating) {
-        zPos -= 0.25;
+        rotationAngle -= steeringInput * turnSpeed;
+        posX += Math.sin(rotationAngle) * speed;
+        posZ += Math.cos(rotationAngle) * speed;
       }
 
       if (myPlayerId) {
         socket.emit('steering-input', {
           playerId: myPlayerId,
-          targetX: targetX,
-          zPos: zPos,
+          carClass: selectedClass,
+          posX: posX,
+          posZ: posZ,
+          rotationAngle: rotationAngle,
           accelerating: isAccelerating
         });
 
         if (cars[myPlayerId]) {
-          cars[myPlayerId].targetX = targetX;
-          cars[myPlayerId].zPos = zPos;
+          cars[myPlayerId].posX = posX;
+          cars[myPlayerId].posZ = posZ;
+          cars[myPlayerId].rotationAngle = rotationAngle;
           cars[myPlayerId].accelerating = isAccelerating;
         }
       }
 
       for (let id in cars) {
         let data = cars[id];
-        let carMesh = data.mesh;
+        let carGroup = data.group;
 
-        carMesh.position.x += (data.targetX - carMesh.position.x) * 0.1;
-        carMesh.position.z = data.zPos;
+        carGroup.position.x = data.posX;
+        carGroup.position.z = data.posZ;
+        carGroup.rotation.y = data.rotationAngle;
 
-        if (data.accelerating) {
-          carMesh.rotation.z = -(data.targetX * 0.05);
-          carMesh.rotation.x = 0.1;
-        } else {
-          carMesh.rotation.z = 0;
-          carMesh.rotation.x = 0;
-        }
-
-        // Lock camera directly behind your car as it drives forward
         if (id === myPlayerId) {
-          camera.position.x = carMesh.position.x * 0.5;
-          camera.position.z = carMesh.position.z + 5;
-          camera.lookAt(carMesh.position.x, carMesh.position.y, carMesh.position.z - 3);
+          let camDist = 5;
+          let camHeight = 2.5;
+          camera.position.x = carGroup.position.x - Math.sin(rotationAngle) * camDist;
+          camera.position.z = carGroup.position.z - Math.cos(rotationAngle) * camDist;
+          camera.position.y = carGroup.position.y + camHeight;
+          
+          camera.lookAt(
+            carGroup.position.x + Math.sin(rotationAngle) * 2,
+            carGroup.position.y,
+            carGroup.position.z + Math.cos(rotationAngle) * 2
+          );
         }
       }
 
