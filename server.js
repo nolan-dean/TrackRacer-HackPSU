@@ -1,4 +1,8 @@
 require('dotenv').config();
+
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -10,53 +14,64 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(express.static('public'));
 
-// Initialize the Gemini client with your key
-// Initialize the Gemini client using an environment variable
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+// Track active players and their colors
+const activePlayers = {};
+const carColors = [0xff1744, 0x00e676, 0x2979ff, 0xffea00, 0xd500f9, 0x00bcd4];
+
 io.on('connection', (socket) => {
   console.log('Device connected:', socket.id);
 
-  // When a phone clicks start racing:
   socket.on('join-game', async () => {
-    socket.emit('assigned-player', { playerId: socket.id });
+    // Assign a unique color based on connection order
+    const colorIndex = Object.keys(activePlayers).length % carColors.length;
+    activePlayers[socket.id] = {
+      id: socket.id,
+      color: carColors[colorIndex],
+      targetX: 0,
+      zPos: 0,
+      accelerating: false
+    };
+
+    socket.emit('assigned-player', { playerId: socket.id, color: carColors[colorIndex] });
+    
+    // Send full current player roster to everyone so new players see existing ones, and vice versa
+    io.emit('sync-players', activePlayers);
     io.emit('player-joined', { playerId: socket.id });
 
-    // 1. Immediately send an instant fallback message so the screen updates with zero lag
-    io.emit('announcer-speak', { text: "Green flag is out! Tires are screaming on the grid!" });
+    // Instant fallback hype line
+    io.emit('announcer-speak', { text: "Green flag is out! Multiple racers hitting the grid!" });
 
-    console.log("Requesting background AI commentary...");
-    const startTime = Date.now();
-
-    try {
-      const prompt = `Give a hilarious, 1-sentence racing announcer hype line for a new player joining the grid. Keep it under 12 words.`;
-      
-      // Call Gemini with a race condition timeout (e.g. 4 seconds max)
-      const aiPromise = ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-      });
-
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Gemini timeout")), 4000)
-      );
-
-      const response = await Promise.race([aiPromise, timeoutPromise]);
-
+    // Non-blocking background Gemini announcer
+    const prompt = `Give a hilarious, 1-sentence racing announcer hype line for a new player joining the multiplayer grid. Keep it under 12 words.`;
+    
+    ai.models.generateContent({
+      model: 'gemini-flash-latest',
+      contents: prompt,
+      config: { thinkingConfig: { thinkingLevel: "LOW" } }
+    }).then(response => {
       if (response && response.text) {
-        console.log(`Announcer ready in ${((Date.now() - startTime) / 1000).toFixed(2)}s:`, response.text);
         io.emit('announcer-speak', { text: response.text });
       }
-    } catch (err) {
-      console.warn("Gemini skipped/timed out, keeping instant hype line:", err.message);
-    }
+    }).catch(err => {
+      console.warn("Background AI skipped:", err.message);
+    });
   });
 
+  // Update specific player state and broadcast to everyone
   socket.on('steering-input', (data) => {
-    io.emit('update-car-steering', data);
+    if (activePlayers[socket.id]) {
+      activePlayers[socket.id].targetX = data.targetX;
+      activePlayers[socket.id].accelerating = data.accelerating;
+      activePlayers[socket.id].zPos = data.zPos;
+    }
+    io.broadcast.emit('update-car-state', data);
   });
 
   socket.on('disconnect', () => {
     console.log('Device disconnected:', socket.id);
+    delete activePlayers[socket.id];
     io.emit('player-left', { playerId: socket.id });
   });
 });
