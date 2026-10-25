@@ -29,24 +29,13 @@ function releasePassenger(p, x, z, byId) {
   p.blockedUntil = Date.now() + 5000;
 }
 
-const landmarkNames = ["Old Main", "Paterno Library", "Bill Pickle's Tap Room", "The Phyrst", "Local Saloon"];
-// Building coordinates to prevent spawning inside them
-const buildingZones = [
-  { x: 0, z: -180, w: 90, d: 40 },
-  { x: -180, z: 0, w: 100, d: 60 },
-  { x: 180, z: 180, w: 60, d: 50 },
-  { x: 180, z: -180, w: 50, d: 50 },
-  { x: -180, z: 180, w: 55, d: 55 }
-];
-
-function isInsideBuilding(x, z) {
-  for (let b of buildingZones) {
-    if (Math.abs(x - b.x) < b.w / 2 + 10 && Math.abs(z - b.z) < b.d / 2 + 10) {
-      return true;
-    }
-  }
-  return false;
-}
+const LANDMARKS = require('./public/landmarks.js');
+const { resolveCollision } = require('./public/carstats.js');   // shared physics   // shared with the controller
+const GRID = [-270, -180, -90, 0, 90, 180, 270];
+const landmarkKeys = new Set(LANDMARKS.map(l => l.x + ',' + l.z));
+// block centres that don't have a landmark on them = safe pickup spots
+const freeBlocks = [];
+GRID.forEach(x => GRID.forEach(z => { if (!landmarkKeys.has(x + ',' + z)) freeBlocks.push({ x, z }); }));
 
 // Spawn passengers ensuring they never spawn inside buildings
 setInterval(() => {
@@ -54,21 +43,10 @@ setInterval(() => {
     const sizes = [1, 2, 3, 4];
     const size = sizes[Math.floor(Math.random() * sizes.length)];
     
-    let x, z;
-    let attempts = 0;
-    do {
-      x = (Math.floor(Math.random() * 5) - 2) * 90;
-      z = (Math.floor(Math.random() * 5) - 2) * 90;
-      attempts++;
-    } while (isInsideBuilding(x, z) && attempts < 10);
-
-    let destX, destZ;
-    do {
-      destX = (Math.floor(Math.random() * 5) - 2) * 90;
-      destZ = (Math.floor(Math.random() * 5) - 2) * 90;
-    } while (destX === x && destZ === z);
-    
-    const randomDestName = landmarkNames[Math.floor(Math.random() * landmarkNames.length)];
+    const spot = freeBlocks[Math.floor(Math.random() * freeBlocks.length)];
+    const x = spot.x, z = spot.z;
+    const dest = LANDMARKS[Math.floor(Math.random() * LANDMARKS.length)];
+    const destX = dest.x, destZ = dest.z, randomDestName = dest.name;
     let baseTip = size * 25;
 
     passengers.push({
@@ -106,6 +84,21 @@ function broadcastLeaderboard() {
   io.emit('update-leaderboard', leaderboardData);
 }
 
+// ---- car vs car collisions: checked 20x/sec from the positions + speeds each driver reports ----
+const hitCooldown = {};   // pair -> time when they can collide again
+setInterval(() => {
+  const ids = Object.keys(players), now = Date.now();
+  for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
+    const key = [ids[i], ids[j]].sort().join('|');
+    if ((hitCooldown[key] || 0) > now) continue;
+    const hit = resolveCollision(players[ids[i]], players[ids[j]]);
+    if (!hit) continue;
+    hitCooldown[key] = now + 1200;
+    io.to(ids[i]).emit('car-hit', hit.a);
+    io.to(ids[j]).emit('car-hit', hit.b);
+  }
+}, 50);
+
 io.on('connection', (socket) => {
   socket.on('join-game', (data) => {
     players[socket.id] = {
@@ -113,7 +106,7 @@ io.on('connection', (socket) => {
       name: data.name || 'Driver',
       carClass: data.carClass || 'Small',
       tips: 100,
-      posX: 0, posZ: 0, rotationAngle: 0, accelerating: false
+      posX: 45, posZ: 45, rotationAngle: 0, accelerating: false
     };
 
     socket.emit('assigned-player', { playerId: socket.id });
@@ -128,6 +121,7 @@ io.on('connection', (socket) => {
       players[socket.id].posZ = data.posZ;
       players[socket.id].rotationAngle = data.rotationAngle;
       players[socket.id].accelerating = data.accelerating;
+      players[socket.id].speed = data.speed || 0;
       socket.broadcast.emit('update-car-state', data);
     }
   });
