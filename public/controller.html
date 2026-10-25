@@ -539,8 +539,17 @@ h2 { color: #00e676; margin-bottom: 5px; }
 </script>
 
 <!-- Map game: game.js first so initMap exists when Google calls it -->
-<script src="game.js"></script>
-<script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBrfWvkpla6va6HppKdsj-e6EUJ6qElIZg&libraries=geometry,places&callback=initMap"></script>
+<script>
+function initMap() {
+  new google.maps.Map(document.getElementById('map'), {
+    center: { lat: 40.7934, lng: -77.8600 },
+    zoom: 15,
+    disableDefaultUI: true,
+    gestureHandling: 'none'
+  });
+}
+</script>
+<script async src="https://maps.googleapis.com/maps/api/js?key=YOUR_KEY&libraries=geometry,places&callback=initMap"></script>
 
 </body>
 </html>
