@@ -19,7 +19,7 @@ let nextPassengerId = 1;
 
 const PICKUP_WINDOW_MS = 23000;    // how long a waiting passenger stays on the road
 const CANCEL_COOLDOWN_MS = 20000;
-const MIN_PLAYERS = 1;             // the host can't start a match with fewer drivers than this
+const MIN_PLAYERS = 4;             // the host can't start a match with fewer drivers than this
 
 // ---- scaling: more drivers = more passengers, spawning faster ----
 const playerCount = () => Object.keys(players).length;
@@ -38,9 +38,13 @@ function releasePassenger(p, x, z, byId) {
 const LANDMARKS = require('./public/landmarks.js');           // shared with the controller
 const { resolveCollision } = require('./public/carstats.js');   // shared physics
 
-// ---- match state: 'lobby' (waiting for host) -> 'playing' -> 'ended' (results) -> back to 'lobby' ----
-const game = { state: 'lobby', endsAt: 0, minutes: 4, timer: null, lastResults: null };
-const gameInfo = () => ({ minPlayers: MIN_PLAYERS, state: game.state, minutes: game.minutes, remainingMs: game.state === 'playing' ? Math.max(0, game.endsAt - Date.now()) : 0 });
+// ---- match state: 'lobby' (waiting for host) -> 'countdown' (3-2-1-GO) -> 'playing' -> 'ended' (results) -> back to 'lobby' ----
+const game = { state: 'lobby', endsAt: 0, minutes: 4, timer: null, lastResults: null, cdTimers: [] };
+const gameInfo = () => ({
+  minPlayers: MIN_PLAYERS, state: game.state, minutes: game.minutes,
+  remainingMs: game.state === 'playing' ? Math.max(0, game.endsAt - Date.now()) : game.state === 'countdown' ? game.minutes * 60000 : 0
+});
+
 
 // each driver starts on a different open intersection so nobody spawns on top of anyone
 const SPAWNS = [[45, 45], [-45, 45], [45, -45], [-45, -45], [135, 45], [-135, 45], [135, -45], [-135, -45],
@@ -114,6 +118,24 @@ function spawnLoop() {
 }
 spawnLoop();
 
+const COUNTDOWN_STEPS = [3, 2, 1, 0];     // seconds shown; 0 = GO
+function beginCountdown(minutes) {
+  game.state = 'countdown'; game.minutes = minutes; game.lastResults = null; passengers = [];
+  Object.values(players).forEach(p => { p.tips = 100; p.stats = newStats(); p.speed = 0; [p.posX, p.posZ] = SPAWNS[p.spawnIndex % SPAWNS.length]; });   // everyone is placed on the road, frozen
+  io.emit('sync-passengers', passengers);
+  io.emit('game-countdown', { minutes });
+  io.emit('game-info', gameInfo());
+  broadcastLeaderboard();
+  game.cdTimers.forEach(clearTimeout);
+  game.cdTimers = COUNTDOWN_STEPS.map((n, i) => setTimeout(() => {
+    io.emit('countdown-tick', { n });
+    if (n === 0) startGame(minutes);
+  }, 600 + i * 1000));
+}
+function cancelCountdown() {
+  game.cdTimers.forEach(clearTimeout); game.cdTimers = [];
+  resetToLobby();
+}
 function startGame(minutes) {
   game.state = 'playing'; game.minutes = minutes; game.endsAt = Date.now() + minutes * 60000; game.lastResults = null;
   passengers = [];
@@ -184,7 +206,7 @@ setInterval(() => {
 io.on('connection', (socket) => {
   // ---- host screen ----
   socket.on('host-join', () => {
-    socket.isHost = true;
+    socket.isHost = true; 
     socket.emit('sync-players', players);
     socket.emit('game-info', gameInfo());
     if (game.state === 'ended' && game.lastResults) socket.emit('game-ended', game.lastResults);
@@ -192,7 +214,7 @@ io.on('connection', (socket) => {
   });
   socket.on('host-start', (data) => {
     if (!socket.isHost || game.state !== 'lobby' || playerCount() < MIN_PLAYERS) return;
-    startGame(Math.max(1, Math.min(10, Math.round(Number(data && data.minutes)) || 4)));
+    beginCountdown(Math.max(1, Math.min(10, Math.round(Number(data && data.minutes)) || 4)));
   });
   socket.on('host-reset', () => { if (socket.isHost && game.state === 'ended') resetToLobby(); });
 
@@ -214,6 +236,7 @@ io.on('connection', (socket) => {
     io.emit('sync-players', players);
     socket.emit('sync-passengers', passengers);
     socket.emit('game-info', gameInfo());
+    if (game.state === 'countdown') socket.emit('game-countdown', { minutes: game.minutes });
     if (game.state === 'playing') socket.emit('game-started', { remainingMs: gameInfo().remainingMs, minutes: game.minutes });   // joining mid-match: straight in
     broadcastLeaderboard();
   });
@@ -296,6 +319,7 @@ io.on('connection', (socket) => {
     delete players[socket.id];
     io.emit('player-left', { playerId: socket.id });
     broadcastLeaderboard();
+    if (game.state === 'countdown' && playerCount() < MIN_PLAYERS) cancelCountdown();   // fell below the minimum before GO
   });
 });
 
