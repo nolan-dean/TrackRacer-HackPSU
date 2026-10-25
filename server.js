@@ -17,6 +17,18 @@ let players = {};
 let passengers = [];
 let nextPassengerId = 1;
 
+const PICKUP_WINDOW_MS = 23000;    // how long a waiting passenger stays on the road
+const CANCEL_COOLDOWN_MS = 20000;
+
+// Put a carried passenger back on the road with the time they had left at pickup
+function releasePassenger(p, x, z, byId) {
+  p.pickedUpBy = null;
+  p.x = x; p.z = z;
+  p.spawnTime = Date.now() - (PICKUP_WINDOW_MS - (p.remainingMs ?? PICKUP_WINDOW_MS));
+  p.blockedId = byId;                       // the driver who dropped them can't instantly re-grab
+  p.blockedUntil = Date.now() + 5000;
+}
+
 const landmarkNames = ["Old Main", "Paterno Library", "Bill Pickle's Tap Room", "The Phyrst", "Local Saloon"];
 // Building coordinates to prevent spawning inside them
 const buildingZones = [
@@ -77,7 +89,7 @@ setInterval(() => {
 setInterval(() => {
   const now = Date.now();
   const prevLength = passengers.length;
-  passengers = passengers.filter(p => p.pickedUpBy || (now - p.spawnTime < 23000));
+  passengers = passengers.filter(p => p.pickedUpBy || (now - p.spawnTime < PICKUP_WINDOW_MS));
   
   if (passengers.length !== prevLength) {
     io.emit('sync-passengers', passengers);
@@ -124,10 +136,13 @@ io.on('connection', (socket) => {
     const { passengerId, carClass } = data;
     const passenger = passengers.find(p => p.id === passengerId);
 
-    if (passenger && !passenger.pickedUpBy) {
+    const alreadyCarrying = passengers.some(q => q.pickedUpBy === socket.id);
+    const blocked = passenger && passenger.blockedId === socket.id && Date.now() < passenger.blockedUntil;
+    if (passenger && !passenger.pickedUpBy && !alreadyCarrying && !blocked) {
       let maxCap = (carClass === 'Small') ? 2 : (carClass === 'Large' ? 4 : 1);
       if (passenger.size <= maxCap) {
         passenger.pickedUpBy = socket.id;
+        passenger.remainingMs = Math.max(0, PICKUP_WINDOW_MS - (Date.now() - passenger.spawnTime));
         io.emit('sync-passengers', passengers);
         socket.emit('passenger-picked-up', passenger);
       }
@@ -138,7 +153,7 @@ io.on('connection', (socket) => {
     const { passengerId, carClass } = data;
     const pIndex = passengers.findIndex(p => p.id === passengerId);
 
-    if (pIndex !== -1) {
+    if (pIndex !== -1 && passengers[pIndex].pickedUpBy === socket.id) {
       const passenger = passengers[pIndex];
       passengers.splice(pIndex, 1);
       io.emit('sync-passengers', passengers);
@@ -153,7 +168,24 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Cancel: no money, passenger goes back where the car is, 20s cooldown, only while carrying
+  socket.on('cancel-ride', () => {
+    const me = players[socket.id];
+    if (!me) return;
+    const now = Date.now();
+    if (now - (me.lastCancel || 0) < CANCEL_COOLDOWN_MS) return;
+    const p = passengers.find(q => q.pickedUpBy === socket.id);
+    if (!p) return;
+    me.lastCancel = now;
+    releasePassenger(p, me.posX, me.posZ, socket.id);
+    io.emit('sync-passengers', passengers);
+    socket.emit('ride-cancelled');
+  });
+
   socket.on('disconnect', () => {
+    const gone = players[socket.id];
+    passengers.forEach(p => { if (p.pickedUpBy === socket.id) releasePassenger(p, gone ? gone.posX : p.x, gone ? gone.posZ : p.z, null); });
+    io.emit('sync-passengers', passengers);
     delete players[socket.id];
     io.emit('player-left', { playerId: socket.id });
     broadcastLeaderboard();
