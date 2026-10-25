@@ -1,78 +1,75 @@
-require('dotenv').config();
-
-const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first');
-
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const { GoogleGenAI } = require('@google/genai');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server);
 
-app.use(express.static('public'));
+// Serve static files from 'public' folder
+app.use(express.static(path.join(__dirname, 'public')));
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const players = {};
 
-// Track active players and their colors
-const activePlayers = {};
-const carColors = [0xff1744, 0x00e676, 0x2979ff, 0xffea00, 0xd500f9, 0x00bcd4];
+// Fun local quotes for the live announcer box (no AI required!)
+const announcerLines = [
+  "Rider rated 1 star for aggressive drifting.",
+  "Surge pricing is in effect! Speed up!",
+  "Driver missed the turn, recalculating route...",
+  "Passenger is throwing up in the back seat!",
+  "Looking for a parking spot? Good luck.",
+  "Driver is playing lo-fi beats to chill/drive to.",
+  "Watch out for pedestrians, your rating is dropping!",
+  "Arriving in 3 minutes... make it 30 seconds."
+];
+
+// Periodically broadcast a random local announcer line to the host
+setInterval(() => {
+  if (Object.keys(players).length > 0) {
+    const randomQuote = announcerLines[Math.floor(Math.random() * announcerLines.length)];
+    io.emit('announcer-speak', { text: randomQuote });
+  }
+}, 7000);
 
 io.on('connection', (socket) => {
-  console.log('Device connected:', socket.id);
+  console.log(`Device connected: ${socket.id}`);
 
-  socket.on('join-game', async () => {
-    // Assign a unique color based on connection order
-    const colorIndex = Object.keys(activePlayers).length % carColors.length;
-    activePlayers[socket.id] = {
-      id: socket.id,
-      color: carColors[colorIndex],
-      targetX: 0,
-      zPos: 0,
+  socket.on('join-game', (data) => {
+    players[socket.id] = {
+      playerId: socket.id,
+      carClass: data.carClass || 'Small',
+      posX: 0,
+      posZ: 0,
+      rotationAngle: 0,
       accelerating: false
     };
 
-    socket.emit('assigned-player', { playerId: socket.id, color: carColors[colorIndex] });
-    
-    // Send full current player roster to everyone so new players see existing ones, and vice versa
-    io.emit('sync-players', activePlayers);
+    // Notify host that a player joined
     io.emit('player-joined', { playerId: socket.id });
-
-    // Instant fallback hype line
-    io.emit('announcer-speak', { text: "Green flag is out! Multiple racers hitting the grid!" });
-
-    // Non-blocking background Gemini announcer
-    const prompt = `Give a hilarious, 1-sentence racing announcer hype line for a new player joining the multiplayer grid. Keep it under 12 words.`;
-    
-    ai.models.generateContent({
-      model: 'gemini-flash-latest',
-      contents: prompt,
-      config: { thinkingConfig: { thinkingLevel: "LOW" } }
-    }).then(response => {
-      if (response && response.text) {
-        io.emit('announcer-speak', { text: response.text });
-      }
-    }).catch(err => {
-      console.warn("Background AI skipped:", err.message);
-    });
+    // Sync current player states
+    socket.emit('assigned-player', { playerId: socket.id });
+    io.emit('sync-players', players);
   });
 
-  // Update specific player state and broadcast to everyone
   socket.on('steering-input', (data) => {
-    if (activePlayers[socket.id]) {
-      activePlayers[socket.id].targetX = data.targetX;
-      activePlayers[socket.id].accelerating = data.accelerating;
-      activePlayers[socket.id].zPos = data.zPos;
+    if (players[data.playerId]) {
+      players[data.playerId].posX = data.posX;
+      players[data.playerId].posZ = data.posZ;
+      players[data.playerId].rotationAngle = data.rotationAngle;
+      players[data.playerId].accelerating = data.accelerating;
+
+      // Broadcast movement to all other clients
+      socket.broadcast.emit('update-car-state', players[data.playerId]);
     }
-    io .emit('update-car-state', data);
   });
 
   socket.on('disconnect', () => {
-    console.log('Device disconnected:', socket.id);
-    delete activePlayers[socket.id];
-    io.emit('player-left', { playerId: socket.id });
+    console.log(`Device disconnected: ${socket.id}`);
+    if (players[socket.id]) {
+      delete players[socket.id];
+      io.emit('player-left', { playerId: socket.id });
+    }
   });
 });
 

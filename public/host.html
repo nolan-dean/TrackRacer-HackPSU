@@ -1,11 +1,31 @@
-<!--
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>3D Race Host & Announcer</title>
   <style>
-    body { margin: 0; background: #0f0f0f; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
-    .container { text-align: center; background: rgba(20,20,20,0.9); padding: 40px; border-radius: 16px; border: 2px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 500px; width: 100%; }
+    body { 
+      margin: 0; 
+      background: #0f0f0f; 
+      color: white; 
+      font-family: sans-serif; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: center; 
+      height: 100vh; 
+      overflow: hidden; 
+    }
+    .container { 
+      text-align: center; 
+      background: rgba(20,20,20,0.95); 
+      padding: 40px; 
+      border-radius: 16px; 
+      border: 2px solid #333; 
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+      max-width: 500px; 
+      width: 100%; 
+    }
     h1 { color: #00e676; margin-bottom: 10px; }
     #qrcode { background: white; padding: 15px; display: inline-block; border-radius: 8px; margin: 20px 0; }
     #announcer-box { margin-top: 25px; background: rgba(255, 215, 0, 0.15); border-left: 4px solid gold; padding: 15px; border-radius: 6px; font-style: italic; text-align: left; }
@@ -32,8 +52,7 @@
   <script>
     const socket = io();
 
-    // Use window.location.host so it dynamically uses your local IP instead of 'localhost'
-    // Inside public/host.html
+    // Dynamically generates the QR code pointing to your ngrok tunnel
     const controllerUrl = 'https://ecology-emotion-magma.ngrok-free.dev/controller.html';
     new QRCode(document.getElementById("qrcode"), {
       text: controllerUrl,
@@ -57,70 +76,5 @@
       document.getElementById('commentary').innerText = `"${data.text}"`;
     });
   </script>
-</body>
-</html> 
---> 
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>3D Race Host & Announcer</title>
-<style>
-body { margin: 0; background: #0f0f0f; color: white; font-family: sans-serif; overflow: hidden; }
-#map { width: 100vw; height: 100vh; margin: 0; }
-
-.container { position: fixed; top: 20px; left: 20px; z-index: 10; text-align: center; background: rgba(20,20,20,0.9); padding: 20px; border-radius: 16px; border: 2px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 280px; }
-h1 { color: #00e676; margin: 0 0 10px 0; font-size: 22px; }
-#qrcode { background: white; padding: 10px; display: inline-block; border-radius: 8px; margin: 10px 0; }
-#announcer-box { margin-top: 15px; background: rgba(255, 215, 0, 0.15); border-left: 4px solid gold; padding: 10px; border-radius: 6px; font-style: italic; text-align: left; }
-#announcer-box h3 { margin: 0 0 5px 0; color: gold; font-style: normal; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
-</style>
-</head>
-<body>
-
-<div id="map"></div>
-
-<div class="container">
-  <h1>TrackRacer 3D</h1>
-  <p>Scan with your iPhone to launch controller:</p>
-  <div id="qrcode"></div>
-  <p>Connected Racers: <span id="count" style="font-weight: bold; color: #00e676;">0</span></p>
-
-  <div id="announcer-box">
-    <h3>Live Race Announcer</h3>
-    <span id="commentary">Waiting for racers to join the grid...</span>
-  </div>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="/socket.io/socket.io.js"></script>
-
-<script>
-const hostSocket = io();
-
-const controllerUrl = 'https://ecology-emotion-magma.ngrok-free.dev/controller.html';
-new QRCode(document.getElementById("qrcode"), { text: controllerUrl, width: 150, height: 150 });
-
-let activePlayers = new Set();
-
-hostSocket.on('player-joined', (data) => {
-  activePlayers.add(data.playerId);
-  document.getElementById('count').innerText = activePlayers.size;
-});
-
-hostSocket.on('player-left', (data) => {
-  activePlayers.delete(data.playerId);
-  document.getElementById('count').innerText = activePlayers.size;
-});
-
-hostSocket.on('announcer-speak', (data) => {
-  document.getElementById('commentary').innerText = `"${data.text}"`;
-});
-</script>
-
-<script src="game.js"></script>
-<script async src="https://maps.googleapis.com/maps/api/js?key=YOUR_MAPS_API_KEY&libraries=geometry,places&callback=initMap"></script>
-
 </body>
 </html>
