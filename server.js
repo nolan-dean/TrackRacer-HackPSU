@@ -66,7 +66,7 @@ io.on('connection', (socket) => {
       activePlayers[socket.id].accelerating = data.accelerating;
       activePlayers[socket.id].zPos = data.zPos;
     }
-    io.broadcast.emit('update-car-state', data);
+    io .emit('update-car-state', data);
   });
 
   socket.on('disconnect', () => {
