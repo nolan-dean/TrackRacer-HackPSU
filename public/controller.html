@@ -5,104 +5,78 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>UberRacer: Controller</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
+  :root { --ink:#2b1d0e; --cream:#fff3c4; --grass:#5cbf4a; --grass2:#4fae3e; --sky:#7ad7ff; --gold:#ffd23f; --red:#ff5a5f; --blue:#2f6bff; }
   * { box-sizing: border-box; }
   html, body {
-    margin: 0; padding: 0; width: 100vw; height: 100vh;
-    width: 100dvw; height: 100dvh; background: #0f172a; color: #fff;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    overflow: hidden; position: fixed; inset: 0;
-    touch-action: none;
+    margin: 0; padding: 0; width: 100vw; height: 100vh; width: 100dvw; height: 100dvh;
+    background: var(--sky); color: var(--ink); font-family: 'Press Start 2P', 'Courier New', monospace;
+    overflow: hidden; position: fixed; inset: 0; touch-action: none;
   }
   #game-canvas { display: block; position: fixed; inset: 0; width: 100vw !important; height: 100vh !important; }
-  
-  #street-hud {
-    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
-    background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px);
-    border: 1px solid rgba(0, 230, 118, 0.3); padding: 4px 14px;
-    border-radius: 20px; z-index: 40; font-size: 12px; font-weight: 600; color: #00e676;
-    pointer-events: none; text-transform: uppercase; letter-spacing: 0.8px; text-align: center;
-  }
 
-  #hud-balance {
-    position: fixed; top: 12px; right: 15px;
-    background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px);
-    border: 1px solid rgba(56, 189, 248, 0.3); padding: 5px 12px;
-    border-radius: 14px; color: #38bdf8; font-size: 13px; font-weight: bold; z-index: 40;
-  }
+  /* ---- HUD ---- */
+  #street-hud { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); max-width: 52vw; z-index: 40; pointer-events: none;
+    background: var(--cream); border: 4px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); padding: 7px 10px; font-size: 9px; line-height: 1.5; text-align: center; }
+  #hud-balance { position: fixed; top: 10px; right: 72px; z-index: 40; background: var(--gold); border: 4px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); padding: 7px 10px; font-size: 11px; }
 
-  #mission-hud {
-    display: none; position: fixed; left: 25px; bottom: 25px;
-    width: 110px; height: 110px; border-radius: 50%; z-index: 50;
-    flex-direction: column; align-items: center; justify-content: center; text-align: center;
-    font-size: 10px; font-weight: bold; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.9);
-    cursor: pointer; border: 3px solid #ef4444; background: #1e293b;
-    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4); user-select: none;
-    transition: transform 0.1s; padding: 10px;
-  }
-  #mission-hud:active { transform: scale(0.92); }
+  #mission-hud { display: none; position: fixed; left: 22px; bottom: 28px; width: 112px; height: 112px; z-index: 50; padding: 8px;
+    flex-direction: column; align-items: center; justify-content: center; text-align: center; cursor: pointer; user-select: none;
+    background: var(--cream); border: 5px solid var(--red); box-shadow: 0 8px 0 var(--ink), 0 0 0 4px var(--ink); }
+  #mission-hud:active { transform: translateY(6px); box-shadow: 0 2px 0 var(--ink), 0 0 0 4px var(--ink); }
+  #dest-label { font-size: 7px; line-height: 1.5; color: var(--blue); margin-bottom: 8px; max-width: 92px; overflow-wrap: anywhere; }
+  #cooldown-text { font-size: 10px; color: var(--red); }
 
-  .pedal-container {
-    position: fixed; right: 25px; bottom: 25px; display: flex; gap: 12px; z-index: 50;
-  }
-  .pedal {
-    width: 90px; height: 90px; background: rgba(0, 230, 118, 0.15);
-    backdrop-filter: blur(8px); border: 2px solid #00e676; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center; font-size: 32px; color: #00e676;
-    user-select: none; -webkit-user-select: none; box-shadow: 0 0 20px rgba(0,230,118,0.2);
-  }
-  .pedal.active { background: rgba(0, 230, 118, 0.6); color: #0f172a; }
-  #reverse-pedal { border-color: #38bdf8; color: #38bdf8; background: rgba(56, 189, 248, 0.15); box-shadow: 0 0 20px rgba(56,189,248,0.2); }
-  #reverse-pedal.active { background: rgba(56, 189, 248, 0.6); color: #0f172a; }
+  .pedal-container { position: fixed; right: 22px; bottom: 28px; display: flex; gap: 16px; z-index: 50; }
+  .pedal { width: 86px; height: 86px; display: flex; align-items: center; justify-content: center; font-size: 30px; color: var(--ink);
+    background: var(--grass); border: 5px solid var(--ink); box-shadow: 0 8px 0 var(--ink); user-select: none; -webkit-user-select: none; }
+  .pedal.active { transform: translateY(6px); box-shadow: 0 2px 0 var(--ink); background: #8bea6f; }
+  #reverse-pedal { background: #4aa8ff; } #reverse-pedal.active { background: #9bd0ff; }
 
   #marker-layer { position: fixed; inset: 0; pointer-events: none; z-index: 35; }
-  .floating-tag {
-    position: absolute; transform: translate(-50%, -100%);
-    background: rgba(15, 23, 42, 0.85); border: 1px solid #38bdf8; padding: 2px 8px;
-    border-radius: 10px; color: #38bdf8; font-size: 11px; font-weight: bold; text-align: center;
-  }
+  .floating-tag { position: absolute; transform: translate(-50%, -100%); background: var(--cream); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); padding: 4px 6px; color: var(--ink); font-size: 8px; text-align: center; white-space: nowrap; }
+  .tip-popup { position: absolute; transform: translate(-50%, -100%); color: var(--gold); font-size: 18px; z-index: 45; pointer-events: none; animation: floatUp 1s steps(8) forwards;
+    text-shadow: 3px 0 var(--ink), -3px 0 var(--ink), 0 3px var(--ink), 0 -3px var(--ink), 3px 3px var(--ink), -3px -3px var(--ink); }
+  @keyframes floatUp { 0% { opacity: 1; transform: translate(-50%, 0) scale(.8); } 100% { opacity: 0; transform: translate(-50%, -60px) scale(1.2); } }
 
-  .tip-popup {
-    position: absolute; transform: translate(-50%, -100%);
-    color: #00e676; font-size: 20px; font-weight: 900; text-shadow: 0 2px 8px rgba(0,0,0,0.8);
-    animation: floatUp 1s ease-out forwards; pointer-events: none; z-index: 45;
-  }
-  @keyframes floatUp {
-    0% { opacity: 1; transform: translate(-50%, 0) scale(0.8); }
-    100% { opacity: 0; transform: translate(-50%, -60px) scale(1.2); }
-  }
+  /* ---- title / join screen: sky + 3D grass field ---- */
+  #start-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 10px; overflow: hidden;
+    background: var(--sky); }
+  .m-world { position: absolute; left: 0; right: 0; top: 36%; bottom: 0; overflow: hidden; perspective: 500px; perspective-origin: 50% 0; }
+  .m-field { position: absolute; top: 0; left: -100%; width: 300%; height: 420px; transform-origin: 50% 0; transform: rotateX(75deg);
+    background: conic-gradient(var(--grass) 25%, var(--grass2) 0 50%, var(--grass) 0 75%, var(--grass2) 0) 0 0 / 80px 80px; }
+  .m-world::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 40px; background: linear-gradient(var(--sky), transparent); }
+  .m-cloud { position: absolute; top: 14px; left: -90px; width: 14px; height: 14px; background: #fff; box-shadow: 14px 0 #fff, 28px 0 #fff, 42px 0 #fff, 7px -14px #fff, 21px -14px #fff, 35px -14px #fff; animation: mdrift 40s linear infinite; }
+  @keyframes mdrift { to { left: 105vw; } }
+  .menu { position: relative; z-index: 2; width: 100%; max-width: 520px; padding: 12px 16px 16px; text-align: center; background: var(--cream); border: 5px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); }
+  #start-overlay h2 { margin: 0 0 6px; font-size: 20px; font-weight: normal; color: var(--gold); letter-spacing: 1px;
+    text-shadow: 3px 0 var(--ink), -3px 0 var(--ink), 0 3px var(--ink), 0 -3px var(--ink), 3px 3px var(--ink), -3px -3px var(--ink), 3px -3px var(--ink), -3px 3px var(--ink), 5px 5px 0 var(--ink); }
+  .tag { display: inline-block; background: var(--red); color: #fff; border: 3px solid var(--ink); padding: 5px 8px; font-size: 8px; }
+  .name-input { display: block; width: 100%; max-width: 260px; margin: 10px auto; padding: 10px; font-family: inherit; font-size: 11px; text-align: center; color: var(--ink); background: #fff; border: 4px solid var(--ink); outline: none; }
+  .name-input:focus { background: #fffbe6; }
+  .class-container { display: flex; gap: 10px; margin: 4px 0 14px; }
+  .class-btn { flex: 1; padding: 6px 4px 8px; font-family: inherit; font-size: 9px; line-height: 1.7; color: var(--ink); cursor: pointer; background: #fff; border: 4px solid var(--ink); box-shadow: 0 5px 0 var(--ink); }
+  .class-btn small { display: block; font-size: 7px; color: #7a6a52; }
+  .class-btn.selected { background: var(--gold); transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
+  .pcar { display: block; position: relative; width: 44px; height: 14px; margin: 16px auto 12px; background: var(--c); border: 3px solid var(--ink); box-shadow: inset -4px 0 0 #ffe66b; }
+  .pcar::before { content: ''; position: absolute; left: 8px; top: -12px; width: 20px; height: 9px; background: #cfeeff; border: 3px solid var(--ink); border-bottom: none; }
+  .pcar::after { content: ''; position: absolute; left: 4px; bottom: -8px; width: 8px; height: 8px; background: #222; box-shadow: 24px 0 #222; }
+  .pcar.big { width: 56px; } .pcar.big::before { width: 32px; } .pcar.big::after { box-shadow: 36px 0 #222; }
+  .pcar.lux { box-shadow: inset -4px 0 0 #ffe66b, inset 0 -3px 0 #d4af37; }
+  #launch-btn { padding: 13px 26px; font-family: inherit; font-size: 14px; color: #fff; cursor: pointer; background: var(--grass); border: 5px solid var(--ink); box-shadow: 0 6px 0 var(--ink); text-shadow: 3px 3px 0 var(--ink); }
+  #launch-btn:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--ink); }
 
-  #start-overlay {
-    position: fixed; inset: 0; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
-    display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100;
-    padding: 20px; text-align: center;
-  }
-  h2 { color: #00e676; margin-bottom: 5px; font-size: 28px; text-shadow: 0 0 20px rgba(0,230,118,0.4); }
-  .name-input {
-    padding: 12px 18px; font-size: 15px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.1);
-    background: rgba(30, 41, 59, 0.8); color: #fff; width: 100%; max-width: 260px; margin-bottom: 12px; text-align: center; outline: none;
-  }
-  .class-container { display: flex; gap: 10px; margin: 10px 0 20px 0; width: 100%; max-width: 440px; }
-  .class-btn {
-    flex: 1; padding: 15px 8px; font-size: 15px; border-radius: 12px;
-    background: rgba(30, 41, 59, 0.7); border: 2px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer;
-    font-weight: bold; transition: 0.2s;
-  }
-  .class-btn.selected { border-color: #00e676; background: rgba(0,230,118,0.15); color: #00e676; }
-  #launch-btn {
-    padding: 15px 40px; font-size: 18px; border-radius: 12px;
-    background: linear-gradient(135deg, #00e676 0%, #00b0ff 100%); border: none; font-weight: 800; cursor: pointer; color: #0f172a;
-  }
-
-  #fight-warning {
-    display: none; position: fixed; inset: 0; background: rgba(239, 68, 68, 0.5);
-    backdrop-filter: blur(4px); align-items: center; justify-content: center; z-index: 150;
-    font-size: 24px; font-weight: 900; color: #fff; text-align: center; padding: 20px;
-  }
-  #rotate-warning {
-    display: none; position: fixed; inset: 0; background: #0f172a; z-index: 200;
-    align-items: center; justify-content: center; text-align: center; padding: 30px; font-size: 22px; color: #ffd700;
-  }
+  #timer-hud { display: none; position: fixed; top: 10px; left: 12px; z-index: 40; background: #fff; border: 4px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); padding: 7px 10px; font-size: 11px; color: var(--blue); }
+  #timer-hud.low { color: var(--red); animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .big-line { font-size: 10px; line-height: 1.9; margin: 8px 0; }
+  .gold { color: #c98a00; }
+  .waiting { margin-top: 14px; font-size: 9px; line-height: 1.8; color: var(--blue); animation: blink 1.2s steps(2) infinite; }
+  #end-overlay { display: none; position: fixed; inset: 0; z-index: 120; align-items: center; justify-content: center; padding: 10px; background: rgba(43, 29, 14, .6); }
+  #fight-warning { display: none; position: fixed; inset: 0; z-index: 150; align-items: center; justify-content: center; padding: 20px; text-align: center;
+    background: rgba(255, 90, 95, .9); color: #fff; font-size: 16px; line-height: 2; text-shadow: 3px 3px 0 var(--ink); }
+  #rotate-warning { display: none; position: fixed; inset: 0; z-index: 200; align-items: center; justify-content: center; padding: 30px; text-align: center; background: var(--sky); color: var(--ink); font-size: 16px; line-height: 2; }
   @media screen and (orientation: portrait) { #rotate-warning { display: flex; } }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -112,28 +86,42 @@
 </head>
 <body>
 
-<div id="street-hud">📍 E College Ave</div>
-<div id="hud-balance">💰 $100</div>
+<div id="street-hud">E College Ave</div>
+<div id="hud-balance">$100</div>
+<div id="timer-hud">0:00</div>
 
 <div id="mission-hud" onclick="tryCancelRide()">
-  <span id="dest-label" style="font-size:10px; color:#38bdf8; margin-bottom:2px;">Destination</span>
-  <span id="cooldown-text" style="font-size:9px;">READY</span>
+  <span id="dest-label">Destination</span>
+  <span id="cooldown-text">READY</span>
 </div>
 
 <div id="marker-layer"></div>
-<div id="fight-warning">🚨 GROUP FIGHT IN REAR!<br><br>SHAKE PHONE ONCE TO CALM THEM!</div>
-<div id="rotate-warning">📱 Please rotate your phone to landscape mode!</div>
+<div id="fight-warning">GROUP FIGHT IN REAR!<br><br>SHAKE YOUR PHONE!</div>
+<div id="rotate-warning">ROTATE YOUR PHONE TO LANDSCAPE!</div>
 
 <div id="start-overlay">
-  <h2>UberRacer: PSU</h2>
-  <input type="text" id="driver-name" class="name-input" placeholder="Driver Name" value="Driver 1" maxlength="12">
-  <div class="class-container">
-    <button class="class-btn selected" onclick="selectVehicleClass(this, 'Small')">Small<br><span style="font-size:10px; color:#94a3b8;">Cap: 2</span></button>
-    <button class="class-btn" onclick="selectVehicleClass(this, 'Large')">Large<br><span style="font-size:10px; color:#94a3b8;">Cap: 4</span></button>
-    <button class="class-btn" onclick="selectVehicleClass(this, 'Bougie')">Bougie<br><span style="font-size:10px; color:#94a3b8;">Cap: 1</span></button>
+  <div class="m-world"><div class="m-field"></div></div>
+  <div class="m-cloud"></div>
+  <div class="menu">
+    <h2>UBER RACER</h2>
+    <div id="join-form">
+      <input type="text" id="driver-name" class="name-input" placeholder="DRIVER NAME (OPTIONAL)" value="" maxlength="12">
+      <div class="class-container">
+        <button class="class-btn selected" onclick="selectVehicleClass(this, 'Small')"><i class="pcar" style="--c:#00e676"></i>SMALL<small>SEATS 2</small></button>
+        <button class="class-btn" onclick="selectVehicleClass(this, 'Large')"><i class="pcar big" style="--c:#38bdf8"></i>LARGE<small>SEATS 4</small></button>
+        <button class="class-btn" onclick="selectVehicleClass(this, 'Luxury')"><i class="pcar lux" style="--c:#14141c"></i>LUXURY<small>SEATS 1</small></button>
+      </div>
+      <button id="launch-btn" onclick="launchShift()">▶ JOIN GAME</button>
+    </div>
+    <div id="wait-panel" style="display:none">
+      <div class="big-line" style="margin-top:14px">YOU'RE IN!</div>
+      <div class="big-line gold" id="wait-name"></div>
+      <div class="waiting">WAITING FOR THE HOST TO START...</div>
+    </div>
   </div>
-  <button id="launch-btn" onclick="launchShift()">Launch Shift</button>
 </div>
+
+<div id="end-overlay"><div class="menu"><h2>TIME'S UP!</h2><div id="end-body"></div></div></div>
 
 <div class="pedal-container">
   <div id="reverse-pedal" class="pedal">▼</div>
@@ -145,6 +133,7 @@
   let myPlayerId = null;
   let posX = 45, posZ = 45, rotationAngle = 0;   // start on the Beaver & Fraser intersection
   let moveDirection = 0;
+  let gameActive = false, myName = '', mySpawn = { x: 45, z: 45 }, endsAtLocal = 0, lastBumpTime = 0, lastWallReport = 0, joined = false;
   let steeringInput = 0;
   let currentBalance = 100;
   let activePassengers = [];
@@ -439,7 +428,7 @@
   const CAR_SPECS = {
     Small:  { color: 0x00e676, w: 1.5,  len: 3.0, h: 0.55, cab: 0.5, cabLen: 1.6, wheel: 0.36 },
     Large:  { color: 0x38bdf8, w: 1.9,  len: 4.4, h: 0.85, cab: 0.8, cabLen: 3.0, wheel: 0.5 },
-    Bougie: { color: 0x14141c, w: 1.65, len: 4.0, h: 0.42, cab: 0.4, cabLen: 1.8, wheel: 0.4 }
+    Luxury: { color: 0x14141c, w: 1.65, len: 4.0, h: 0.42, cab: 0.4, cabLen: 1.8, wheel: 0.4 }
   };
   function createCarModel(carClass) {
     const s = CAR_SPECS[carClass] || CAR_SPECS.Small, g = new THREE.Group();
@@ -454,8 +443,8 @@
       box(0.36, 0.16, 0.1, lit(0xfff3c4), sx * s.w * 0.3, y0 + s.h * 0.6, s.len / 2, g);
       box(0.36, 0.12, 0.1, lit(0xff2a2a), sx * s.w * 0.3, y0 + s.h * 0.6, -s.len / 2, g);
     });
-    box(0.7, 0.26, 0.26, lit(carClass === 'Bougie' ? 0xffd54a : 0xffffff), 0, roofY + 0.22, cabZ, g); // rideshare roof sign
-    if (carClass === 'Bougie') [-1, 1].forEach(sx => box(0.05, 0.05, s.len * 0.98, lit(0xd4af37), sx * (s.w / 2 + 0.01), y0 + s.h * 0.55, 0, g));
+    box(0.7, 0.26, 0.26, lit(carClass === 'Luxury' ? 0xffd54a : 0xffffff), 0, roofY + 0.22, cabZ, g); // rideshare roof sign
+    if (carClass === 'Luxury') [-1, 1].forEach(sx => box(0.05, 0.05, s.len * 0.98, lit(0xd4af37), sx * (s.w / 2 + 0.01), y0 + s.h * 0.55, 0, g));
     if (carClass === 'Large') [-0.8, 0.8].forEach(z => box(s.w * 0.9, 0.08, 0.08, std(0x222831), 0, roofY + 0.14, z, g));
     if (carClass === 'Small') box(s.w * 0.9, 0.08, 0.5, body, 0, y0 + s.h + 0.1, -s.len / 2 + 0.2, g);
     const pool = new THREE.Mesh(new THREE.CircleGeometry(4, 24), additive(0xfff1b8, 0.16));
@@ -487,11 +476,14 @@
   }
 
   socket.on('assigned-player', (data) => {
-    myPlayerId = data.playerId;
+    myPlayerId = data.playerId; myName = data.name;
+    mySpawn = { x: data.spawnX, z: data.spawnZ };
+    posX = mySpawn.x; posZ = mySpawn.z;
+    document.getElementById('wait-name').innerText = myName.toUpperCase();
     if (!cars[myPlayerId]) {
       const carGroup = createCarModel(selectedClass);
       scene.add(carGroup);
-      cars[myPlayerId] = { group: carGroup, posX: 45, posZ: 45, rotationAngle: 0 };
+      cars[myPlayerId] = { group: carGroup, posX, posZ, rotationAngle: 0 };
     }
   });
 
@@ -546,6 +538,7 @@
   socket.on('passenger-picked-up', (passenger) => {
     currentPassengerInCar = passenger;
     tripStartTime = Date.now();
+    sfx.pickup();
     scheduleFight();
     
     document.getElementById('mission-hud').style.display = 'flex';
@@ -566,7 +559,7 @@
   socket.on('trip-completed', (data) => {
     if (data.tip > 0) {
       currentBalance += data.tip;
-      document.getElementById('hud-balance').innerText = `💰 $${currentBalance}`;
+      document.getElementById('hud-balance').innerText = `$${currentBalance}`;
       showTipPopup(data.tip);
     }
 
@@ -603,10 +596,10 @@
     if (elapsed < COOLDOWN_MS) {
       let percent = (elapsed / COOLDOWN_MS) * 100;
       let secsLeft = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
-      btn.style.background = `conic-gradient(#ef4444 ${percent}%, #1e293b ${percent}%)`;
+      btn.style.background = `conic-gradient(#ff5a5f ${percent}%, #e6d9a8 ${percent}%)`;
       txt.innerText = `${secsLeft}s`;
     } else {
-      btn.style.background = '#1e293b';
+      btn.style.background = '#fff3c4';
       txt.innerText = `CANCEL`;
     }
   }
@@ -633,22 +626,101 @@
     setTimeout(() => popup.remove(), 1000);
   }
 
-  // ---- car vs car: the server works out the collision, we apply our half of it ----
-  function hitPopup(text) {
-    const p = document.createElement('div');
-    p.className = 'tip-popup'; p.style.cssText = 'left:50%;top:38%;color:#ef4444;font-size:28px';
-    p.innerText = text;
-    document.getElementById('marker-layer').appendChild(p);
-    setTimeout(() => p.remove(), 1000);
+  // ================= SOUND (tiny 8-bit synth, no audio files) =================
+  const sfx = (() => {
+    let ctx, eng, engGain, muted = false, step = 0;
+    const ensure = () => { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume(); return ctx; };
+    function tone(freq, dur, type = 'square', vol = 0.07, delay = 0, slideTo) {
+      if (muted || !ctx) return;
+      const t = ctx.currentTime + delay, o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + dur);
+    }
+    function crash(dur, vol) {   // white-noise burst
+      if (muted || !ctx) return;
+      const n = ctx.sampleRate * dur, buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = buf; g.gain.value = vol; s.connect(g); g.connect(ctx.destination); s.start();
+    }
+    const btn = document.createElement('button');
+    btn.textContent = 'SND';
+    btn.style.cssText = 'position:fixed;top:8px;right:8px;z-index:500;font-family:inherit;font-size:8px;padding:9px 8px;border:4px solid #2b1d0e;box-shadow:3px 3px 0 #2b1d0e;background:#fff3c4;color:#2b1d0e;cursor:pointer;';
+    btn.onclick = () => { muted = !muted; btn.textContent = muted ? 'OFF' : 'SND'; if (engGain) engGain.gain.value = 0; };
+    document.body.appendChild(btn);
+    const melody = [523, 659, 784, 659, 587, 740, 880, 740, 494, 622, 740, 622, 523, 659, 784, 1047], bass = [131, 131, 196, 175];
+    return {
+      start() {          // must be called from a tap (browsers block audio otherwise)
+        ensure(); if (eng) return;
+        eng = ctx.createOscillator(); engGain = ctx.createGain(); eng.type = 'triangle'; eng.frequency.value = 55; engGain.gain.value = 0;
+        eng.connect(engGain); engGain.connect(ctx.destination); eng.start();
+        setInterval(() => { tone(melody[step % 16], 0.12, 'square', 0.02); if (step % 4 === 0) tone(bass[(step >> 2) % 4], 0.35, 'triangle', 0.05); step++; }, 190);   // happy little loop
+      },
+      engine(frac) { if (eng) engGain.gain.value = (muted || frac < 0) ? 0 : 0.003 + frac * 0.009; if (eng && frac >= 0) eng.frequency.value = 55 + frac * 50; },
+      pickup() { tone(660, 0.1, 'square', 0.08); tone(880, 0.14, 'square', 0.08, 0.09); },
+      cash()   { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.14, 'square', 0.08, i * 0.07)); },
+      cancel() { tone(330, 0.3, 'sawtooth', 0.06, 0, 90); },
+      hit(spin) { crash(0.25, 0.18); tone(220, 0.25, 'square', 0.1, 0, 60); if (spin) tone(1000, 0.7, 'triangle', 0.07, 0.05, 180); },   // boink + cartoon whoop
+      alarm() { [880, 660, 880, 660].forEach((f, i) => tone(f, 0.12, 'square', 0.08, i * 0.14)); },
+      shake() { tone(1400, 0.05, 'square', 0.06); }
+    };
+  })();
+  socket.on('trip-completed', () => sfx.cash());
+  socket.on('ride-cancelled', () => sfx.cancel());
+
+  // ---- match flow (the host decides when it starts and how long it lasts) ----
+  const esc = t => String(t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  function resetRound() {
+    currentPassengerInCar = null; clearFight(); lastCancelTime = 0; lastFightTriggerTime = 0;
+    document.getElementById('mission-hud').style.display = 'none';
+    if (destinationMarkerMesh) { scene.remove(destinationMarkerMesh); destinationMarkerMesh = null; }
+    currentBalance = 100; document.getElementById('hud-balance').innerText = '$100';
+    speedNow = 0; spinVel = 0; knockX = knockZ = 0;
+    posX = mySpawn.x; posZ = mySpawn.z; rotationAngle = 0;
   }
+  socket.on('game-started', (g) => {
+    resetRound();
+    gameActive = true; endsAtLocal = Date.now() + g.remainingMs;
+    document.getElementById('start-overlay').style.display = 'none';
+    document.getElementById('end-overlay').style.display = 'none';
+    document.getElementById('timer-hud').style.display = 'block';
+    sfx.cash();
+  });
+  socket.on('game-ended', (r) => {
+    gameActive = false; resetRound();
+    document.getElementById('timer-hud').style.display = 'none';
+    const rank = r.ranking.findIndex(p => p.name === myName), me = r.ranking[rank];
+    document.getElementById('end-body').innerHTML =
+      `<div class="big-line">WINNER<br><span class="gold">${r.winner ? esc(r.winner.name) : '-'}</span><br>$${r.winner ? r.winner.tips : 0}</div>` +
+      `<div class="big-line">YOU: #${rank + 1} / $${me ? me.tips : 0}</div>` +
+      r.awards.filter(a => a.name === myName).map(a => `<div class="big-line gold">${esc(a.title)}</div>`).join('') +
+      `<div class="waiting">WAITING FOR THE HOST...</div>`;
+    document.getElementById('end-overlay').style.display = 'flex';
+    sfx.cash();
+  });
+  socket.on('game-reset', () => {                      // host hit PLAY AGAIN: back to the waiting room
+    gameActive = false; resetRound();
+    document.getElementById('end-overlay').style.display = 'none';
+    document.getElementById('timer-hud').style.display = 'none';
+    document.getElementById('start-overlay').style.display = 'flex';
+  });
+  setInterval(() => {
+    if (!gameActive) return;
+    const left = Math.max(0, endsAtLocal - Date.now()), s = Math.ceil(left / 1000), hud = document.getElementById('timer-hud');
+    hud.innerText = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+    hud.classList.toggle('low', s <= 10);
+  }, 250);
+
+  // ---- car vs car: the server works out the collision, we apply our half of it ----
   socket.on('car-hit', (h) => {
     posX += h.shoveX; posZ += h.shoveZ;                    // pushed apart so cars don't overlap
     const hx = Math.sin(rotationAngle), hz = Math.cos(rotationAngle);
     const vx = hx * speedNow + knockX + h.dvx, vz = hz * speedNow + knockZ + h.dvz;   // our new velocity
     speedNow = vx * hx + vz * hz;                          // part along our heading = driving speed
     knockX = vx - hx * speedNow; knockZ = vz - hz * speedNow;   // the rest = sliding sideways
-    if (h.spin) { spinVel = h.spin; hitPopup('💥 SPUN OUT!'); } else hitPopup('💥 BUMP');
-    if (navigator.vibrate) navigator.vibrate(h.spin ? 200 : 60);
+    if (h.spin) spinVel = h.spin;
+    sfx.hit(!!h.spin);
   });
 
   // ---- Backseat fights: Large car + group of 4 only. Rare, and takes several shakes to break up ----
@@ -665,10 +737,11 @@
   }
   function renderFight() {
     document.getElementById('fight-warning').innerHTML =
-      `🚨 GROUP FIGHT IN REAR!<br><br>SHAKE YOUR PHONE!<br><br>${'💥'.repeat(FIGHT_SHAKES - shakesLeft)}${'⚪'.repeat(shakesLeft)}`;
+      `GROUP FIGHT IN REAR!<br><br>SHAKE YOUR PHONE!<br><br>${'■'.repeat(FIGHT_SHAKES - shakesLeft)}${'□'.repeat(shakesLeft)}`;
   }
   function startFight() {
     fightAt = 0; isFighting = true; shakesLeft = FIGHT_SHAKES; lastFightTriggerTime = Date.now();
+    sfx.alarm();
     renderFight();
     document.getElementById('fight-warning').style.display = 'flex';
   }
@@ -684,19 +757,20 @@
     const now = Date.now();
     if (force > 26 && now - lastShakeTime > 300) {   // one count per real shake
       lastShakeTime = now;
+      sfx.shake();
       if (--shakesLeft <= 0) { lastFightTriggerTime = now; clearFight(); } else renderFight();
     }
   }
 
-  function launchShift() {
-    const driverName = document.getElementById('driver-name').value.trim() || 'Driver';
-    document.getElementById('start-overlay').style.display = 'none';
-
+  function launchShift() {            // "JOIN GAME": enter the lobby and wait for the host
+    if (joined) return; joined = true;
+    sfx.start();
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
       DeviceOrientationEvent.requestPermission().catch(err => console.warn(err));
     }
-
-    socket.emit('join-game', { name: driverName, carClass: selectedClass });
+    socket.emit('join-game', { name: document.getElementById('driver-name').value.trim(), carClass: selectedClass });
+    document.getElementById('join-form').style.display = 'none';
+    document.getElementById('wait-panel').style.display = 'block';
 
     window.addEventListener('deviceorientation', (e) => {
       let steeringVal = e.beta || 0;
@@ -766,7 +840,7 @@
     for (let l of landmarks) {
       if (Math.hypot(x - l.x, z - l.z) < l.radius) { nearbyName = ` (${l.name})`; break; }
     }
-    document.getElementById('street-hud').innerHTML = `📍 ${street}${nearbyName}`;
+    document.getElementById('street-hud').innerHTML = `${street}${nearbyName}`;
   }
 
   function updatePassengerTimers() {
@@ -787,7 +861,7 @@
       let y = (vector.y * -.5 + .5) * window.innerHeight;
 
       if (vector.z < 1) {
-        html += `<div class="floating-tag" style="left:${x}px; top:${y}px;">👥${p.size} ⏱️${timeLeft}s</div>`;
+        html += `<div class="floating-tag" style="left:${x}px; top:${y}px;">PAX ${p.size} | ${timeLeft}s</div>`;
       }
     }
     
@@ -797,6 +871,7 @@
   }
 
   function checkGameTriggers(carVector) {
+    if (!gameActive) return;
     if (!currentPassengerInCar) {
       for (let p of activePassengers) {
         if (!p.pickedUpBy) {
@@ -813,7 +888,7 @@
           // Generous radius check around destination building center for smooth drop-off
           let distToDest = Math.hypot(carVector.x - b.dropX, carVector.z - b.dropZ);
           if (distToDest < 16) {
-            let payout = (selectedClass === 'Bougie') ? 150 : currentPassengerInCar.tipValue;
+            let payout = (selectedClass === 'Luxury') ? 150 : currentPassengerInCar.tipValue;
             socket.emit('complete-trip', { passengerId: currentPassengerInCar.id, carClass: selectedClass, tip: payout });
             break;
           }
@@ -834,7 +909,7 @@
       rotationAngle += spinVel; spinVel *= 0.965; speedNow *= 0.95;
     } else {
       spinVel = 0;
-      const gas = (moveDirection !== 0 && !isFighting) ? moveDirection : 0;
+      const gas = (gameActive && moveDirection !== 0 && !isFighting) ? moveDirection : 0;
       if (gas) {
         const braking = speedNow !== 0 && Math.sign(gas) !== Math.sign(speedNow);
         speedNow += gas * st.accel * (braking ? 2.5 : 1);   // speed accumulates; braking is stronger
@@ -852,16 +927,34 @@
       const nextX = posX + Math.sin(rotationAngle) * speedNow + knockX;
       const nextZ = posZ + Math.cos(rotationAngle) * speedNow + knockZ;
       const nextVector = new THREE.Vector3(nextX, 0, nextZ), here = new THREE.Vector3(posX, 0, posZ);
-      let collided = false;
+      let hitX = false, hitZ = false, collided = false;
       for (let b of buildingBoxes) {
-        if (b.box.containsPoint(nextVector) && !b.box.containsPoint(here)) { collided = true; break; }
+        if (b.box.containsPoint(nextVector) && !b.box.containsPoint(here)) {
+          collided = true;                                  // which wall did we hit? check each axis on its own
+          if (b.box.containsPoint(new THREE.Vector3(nextX, 0, posZ))) hitX = true;
+          if (b.box.containsPoint(new THREE.Vector3(posX, 0, nextZ))) hitZ = true;
+        }
       }
-      if (collided) { speedNow = 0; knockX = knockZ = 0; }
-      else { posX = Math.max(-320, Math.min(320, nextX)); posZ = Math.max(-320, Math.min(320, nextZ)); }
-      knockX *= 0.9; knockZ *= 0.9;
+      if (collided) {                                       // bounce: flip the velocity component that hit the wall, lose some energy
+        if (!hitX && !hitZ) hitX = hitZ = true;             // clipped a corner
+        let vx = Math.sin(rotationAngle) * speedNow + knockX, vz = Math.cos(rotationAngle) * speedNow + knockZ;
+        const impact = Math.hypot(hitX ? vx : 0, hitZ ? vz : 0);
+        if (hitX) vx = -vx * 0.6;
+        if (hitZ) vz = -vz * 0.6;
+        const fx = Math.sin(rotationAngle), fz = Math.cos(rotationAngle);
+        speedNow = vx * fx + vz * fz;
+        knockX = vx - fx * speedNow; knockZ = vz - fz * speedNow;
+        const nowMs = Date.now();
+        if (impact > 0.28 && Math.abs(spinVel) < 0.03) spinVel = (Math.random() < 0.5 ? -1 : 1) * Math.min(0.3, impact * 0.6);   // hard hits spin you
+        if (impact > 0.1 && nowMs - lastBumpTime > 300) { lastBumpTime = nowMs; sfx.hit(impact > 0.28); }
+        if (impact > 0.28 && nowMs - lastWallReport > 1000) { lastWallReport = nowMs; socket.emit('wall-crash'); }
+      } else { posX = Math.max(-320, Math.min(320, nextX)); posZ = Math.max(-320, Math.min(320, nextZ)); }
+      knockX *= 0.93; knockZ *= 0.93;   // slides last a little longer
       if (Math.abs(knockX) < 0.002) knockX = 0;
       if (Math.abs(knockZ) < 0.002) knockZ = 0;
     }
+
+    sfx.engine(gameActive ? Math.abs(speedNow) / st.max : -1);
 
     if (myPlayerId && cars[myPlayerId]) {
       cars[myPlayerId].posX = posX;

@@ -4,12 +4,12 @@ const CAR_STATS = {
     //                                                       (spin resistance: higher = spins less)
     Small:  { max: 0.5,  accel: 0.012, turn: 0.045, mass: 1, stab: 1.0, radius: 1.8 },
     Large:  { max: 0.35, accel: 0.006, turn: 0.035, mass: 3, stab: 1.5, radius: 2.6 },   // heaviest
-    Bougie: { max: 0.65, accel: 0.010, turn: 0.055, mass: 2, stab: 2.5, radius: 2.2 }    // lighter than Large, but built like a tank
+    Luxury: { max: 0.65, accel: 0.010, turn: 0.055, mass: 2, stab: 2.5, radius: 2.2 }    // lighter than Large, but built like a tank
   };
   
   // A, B = { carClass, posX, posZ, rotationAngle, speed }   (speed = signed speed along the car's heading)
   // Returns null if they aren't hitting, else the velocity change, spin and push-apart for each car.
-  function resolveCollision(A, B, e = 0.15) {          // e = restitution. 0 = perfectly inelastic (stick together)
+  function resolveCollision(A, B, e = 0.45) {          // e = restitution. 0 = perfectly inelastic (stick together), higher = bouncier/funnier
     const sa = CAR_STATS[A.carClass] || CAR_STATS.Small, sb = CAR_STATS[B.carClass] || CAR_STATS.Small;
     const dx = B.posX - A.posX, dz = B.posZ - A.posZ, dist = Math.hypot(dx, dz), reach = sa.radius + sb.radius;
     if (dist >= reach || dist === 0) return null;
@@ -32,8 +32,8 @@ const CAR_STATS = {
   
     // spin ~ how hard your velocity got changed, softened by the car's stability
     const spinFor = (dv, role, stab, f, sx, sz) => {
-      const w = Math.min(0.4, Math.abs(dv) * role / stab * 0.5);           // radians per frame
-      if (w < 0.05) return 0;                                              // just a bump
+      const w = Math.min(0.55, Math.abs(dv) * role / stab * 0.85);          // radians per frame
+      if (w < 0.04) return 0;                                              // just a bump
       return (f.x * sz - f.z * sx >= 0 ? 1 : -1) * w;                      // direction depends on which side you were hit
     };
     const overlap = reach - dist;
