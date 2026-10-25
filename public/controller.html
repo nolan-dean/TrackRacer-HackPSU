@@ -4,44 +4,104 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>TrackRacer 3D Course</title>
+<title>UberRacer: Controller</title>
 <style>
   * { box-sizing: border-box; }
   html, body {
     margin: 0; padding: 0; width: 100vw; height: 100vh;
-    width: 100dvw; height: 100dvh; background: #050505; color: #fff;
-    font-family: sans-serif; overflow: hidden; position: fixed; inset: 0;
+    width: 100dvw; height: 100dvh; background: #0f172a; color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden; position: fixed; inset: 0;
+    touch-action: none;
   }
   #game-canvas { display: block; position: fixed; inset: 0; width: 100vw !important; height: 100vh !important; }
+  
+  #street-hud {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px);
+    border: 1px solid rgba(0, 230, 118, 0.3); padding: 4px 14px;
+    border-radius: 20px; z-index: 40; font-size: 12px; font-weight: 600; color: #00e676;
+    pointer-events: none; text-transform: uppercase; letter-spacing: 0.8px; text-align: center;
+  }
+
+  #hud-balance {
+    position: fixed; top: 12px; right: 15px;
+    background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px);
+    border: 1px solid rgba(56, 189, 248, 0.3); padding: 5px 12px;
+    border-radius: 14px; color: #38bdf8; font-size: 13px; font-weight: bold; z-index: 40;
+  }
+
+  #mission-hud {
+    display: none; position: fixed; left: 25px; bottom: 25px;
+    width: 110px; height: 110px; border-radius: 50%; z-index: 50;
+    flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    font-size: 10px; font-weight: bold; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+    cursor: pointer; border: 3px solid #ef4444; background: #1e293b;
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4); user-select: none;
+    transition: transform 0.1s; padding: 10px;
+  }
+  #mission-hud:active { transform: scale(0.92); }
+
+  .pedal-container {
+    position: fixed; right: 25px; bottom: 25px; display: flex; gap: 12px; z-index: 50;
+  }
+  .pedal {
+    width: 90px; height: 90px; background: rgba(0, 230, 118, 0.15);
+    backdrop-filter: blur(8px); border: 2px solid #00e676; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 32px; color: #00e676;
+    user-select: none; -webkit-user-select: none; box-shadow: 0 0 20px rgba(0,230,118,0.2);
+  }
+  .pedal.active { background: rgba(0, 230, 118, 0.6); color: #0f172a; }
+  #reverse-pedal { border-color: #38bdf8; color: #38bdf8; background: rgba(56, 189, 248, 0.15); box-shadow: 0 0 20px rgba(56,189,248,0.2); }
+  #reverse-pedal.active { background: rgba(56, 189, 248, 0.6); color: #0f172a; }
+
+  #marker-layer { position: fixed; inset: 0; pointer-events: none; z-index: 35; }
+  .floating-tag {
+    position: absolute; transform: translate(-50%, -100%);
+    background: rgba(15, 23, 42, 0.85); border: 1px solid #38bdf8; padding: 2px 8px;
+    border-radius: 10px; color: #38bdf8; font-size: 11px; font-weight: bold; text-align: center;
+  }
+
+  .tip-popup {
+    position: absolute; transform: translate(-50%, -100%);
+    color: #00e676; font-size: 20px; font-weight: 900; text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+    animation: floatUp 1s ease-out forwards; pointer-events: none; z-index: 45;
+  }
+  @keyframes floatUp {
+    0% { opacity: 1; transform: translate(-50%, 0) scale(0.8); }
+    100% { opacity: 0; transform: translate(-50%, -60px) scale(1.2); }
+  }
+
   #start-overlay {
-    position: fixed; inset: 0; background: rgba(5,5,5,0.95);
+    position: fixed; inset: 0; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
     display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100;
     padding: 20px; text-align: center;
   }
-  h2 { color: #00e676; margin-bottom: 5px; }
-  .class-container { display: flex; gap: 12px; margin: 20px 0; width: 100%; max-width: 450px; }
+  h2 { color: #00e676; margin-bottom: 5px; font-size: 28px; text-shadow: 0 0 20px rgba(0,230,118,0.4); }
+  .name-input {
+    padding: 12px 18px; font-size: 15px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.1);
+    background: rgba(30, 41, 59, 0.8); color: #fff; width: 100%; max-width: 260px; margin-bottom: 12px; text-align: center; outline: none;
+  }
+  .class-container { display: flex; gap: 10px; margin: 10px 0 20px 0; width: 100%; max-width: 440px; }
   .class-btn {
-    flex: 1; padding: 15px 10px; font-size: 16px; border-radius: 10px;
-    background: #1a1a1a; border: 2px solid #333; color: #fff; cursor: pointer;
+    flex: 1; padding: 15px 8px; font-size: 15px; border-radius: 12px;
+    background: rgba(30, 41, 59, 0.7); border: 2px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer;
     font-weight: bold; transition: 0.2s;
   }
   .class-btn.selected { border-color: #00e676; background: rgba(0,230,118,0.15); color: #00e676; }
   #launch-btn {
-    padding: 18px 40px; font-size: 20px; border-radius: 12px;
-    background: #00e676; border: none; font-weight: bold; cursor: pointer; color: #111;
-    box-shadow: 0 4px 15px rgba(0,230,118,0.4); margin-top: 10px;
+    padding: 15px 40px; font-size: 18px; border-radius: 12px;
+    background: linear-gradient(135deg, #00e676 0%, #00b0ff 100%); border: none; font-weight: 800; cursor: pointer; color: #0f172a;
   }
-  #gas-pedal {
-    display: none; position: fixed; right: 30px; bottom: 30px;
-    width: 120px; height: 120px; background: rgba(0, 230, 118, 0.2);
-    border: 3px solid #00e676; border-radius: 50%; z-index: 50;
-    align-items: center; justify-content: center; font-size: 42px; color: #00e676;
-    user-select: none; -webkit-user-select: none; box-shadow: 0 0 20px rgba(0,230,118,0.3);
+
+  #fight-warning {
+    display: none; position: fixed; inset: 0; background: rgba(239, 68, 68, 0.5);
+    backdrop-filter: blur(4px); align-items: center; justify-content: center; z-index: 150;
+    font-size: 24px; font-weight: 900; color: #fff; text-align: center; padding: 20px;
   }
-  #gas-pedal:active, #gas-pedal.active { background: rgba(0, 230, 118, 0.7); color: #111; transform: scale(0.95); }
   #rotate-warning {
-    display: none; position: fixed; inset: 0; background: #111; z-index: 200;
-    align-items: center; justify-content: center; text-align: center; padding: 30px; font-size: 22px; color: gold;
+    display: none; position: fixed; inset: 0; background: #0f172a; z-index: 200;
+    align-items: center; justify-content: center; text-align: center; padding: 30px; font-size: 22px; color: #ffd700;
   }
   @media screen and (orientation: portrait) { #rotate-warning { display: flex; } }
 </style>
@@ -50,27 +110,54 @@
 </head>
 <body>
 
-<div id="rotate-warning">📱 Please rotate your phone to landscape mode to access the cockpit!</div>
+<div id="street-hud">📍 E College Ave</div>
+<div id="hud-balance">💰 $100</div>
+
+<div id="mission-hud" onclick="tryCancelRide()">
+  <span id="dest-label" style="font-size:10px; color:#38bdf8; margin-bottom:2px;">Destination</span>
+  <span id="cooldown-text" style="font-size:9px;">READY</span>
+</div>
+
+<div id="marker-layer"></div>
+<div id="fight-warning">🚨 GROUP FIGHT IN REAR!<br><br>SHAKE PHONE ONCE TO CALM THEM!</div>
+<div id="rotate-warning">📱 Please rotate your phone to landscape mode!</div>
 
 <div id="start-overlay">
-  <h2>UberRacer 3D Course</h2>
-  <p style="color: #aaa; font-size: 14px; margin-bottom: 10px;">Select your ride class:</p>
+  <h2>UberRacer: PSU</h2>
+  <input type="text" id="driver-name" class="name-input" placeholder="Driver Name" value="Driver 1" maxlength="12">
   <div class="class-container">
-    <button class="class-btn selected" onclick="selectVehicleClass(this, 'Small')">Small<br><span style="font-size:11px; color:#aaa;">Agile / Fast</span></button>
-    <button class="class-btn" onclick="selectVehicleClass(this, 'Large')">Large<br><span style="font-size:11px; color:#aaa;">XL / Tank</span></button>
-    <button class="class-btn" onclick="selectVehicleClass(this, 'Bougie')">Bougie<br><span style="font-size:11px; color:#aaa;">Black / Pro</span></button>
+    <button class="class-btn selected" onclick="selectVehicleClass(this, 'Small')">Small<br><span style="font-size:10px; color:#94a3b8;">Cap: 2</span></button>
+    <button class="class-btn" onclick="selectVehicleClass(this, 'Large')">Large<br><span style="font-size:10px; color:#94a3b8;">Cap: 4</span></button>
+    <button class="class-btn" onclick="selectVehicleClass(this, 'Bougie')">Bougie<br><span style="font-size:10px; color:#94a3b8;">Cap: 1</span></button>
   </div>
   <button id="launch-btn" onclick="launchShift()">Launch Shift</button>
 </div>
 
-<div id="gas-pedal">▲</div>
+<div class="pedal-container">
+  <div id="reverse-pedal" class="pedal">▼</div>
+  <div id="gas-pedal" class="pedal">▲</div>
+</div>
 
 <script>
   let selectedClass = 'Small';
   let myPlayerId = null;
-  let posX = 0, posZ = 0, rotationAngle = 0, isAccelerating = false;
+  let posX = 0, posZ = 0, rotationAngle = 0;
+  let moveDirection = 0;
   let steeringInput = 0;
+  let currentBalance = 100;
+  let activePassengers = [];
+  let currentPassengerInCar = null;
+  let isFighting = false;
+  let tripStartTime = 0;
+  let lastCancelTime = 0;
+  let lastFightTriggerTime = 0;
+  const COOLDOWN_MS = 20000;
+
   const cars = {};
+  const landmarks = [];
+  const buildingBoxes = [];
+  const passengerMeshes = {};
+  let destinationMarkerMesh = null;
 
   const socket = io();
 
@@ -80,111 +167,114 @@
     selectedClass = carClass;
   }
 
-  // Three.js 3D Scene Setup
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0a0c);
-  scene.fog = new THREE.FogExp2(0x0a0a0c, 0.015);
+  scene.background = new THREE.Color(0x0f172a);
+  scene.fog = new THREE.FogExp2(0x0f172a, 0.009);
 
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
   renderer.domElement.id = 'game-canvas';
   document.body.appendChild(renderer.domElement);
 
-  // Lighting
-  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-  const dirLight = new THREE.DirectionalLight(0x00e676, 1.2);
-  dirLight.position.set(20, 40, 20);
+  scene.add(new THREE.AmbientLight(0x38bdf8, 0.6));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
+  dirLight.position.set(40, 80, 40);
+  dirLight.castShadow = true;
   scene.add(dirLight);
 
-  const neonBlueLight = new THREE.PointLight(0x2979ff, 2, 50);
-  neonBlueLight.position.set(0, 5, 0);
-  scene.add(neonBlueLight);
-
-  // Build 3D City Road Grid Course
-  function buildCityCourse() {
-    // Ground base
-    const groundGeo = new THREE.PlaneGeometry(600, 600);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x111115, roughness: 0.9 });
+  function buildPennStateCourse() {
+    const groundGeo = new THREE.PlaneGeometry(1200, 1200);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
     scene.add(ground);
 
-    // Main Roads (Asphalt blocks with glowing neon lane markers)
-    const roadMat = new THREE.MeshStandardMaterial({ color: 0x1c1c24, roughness: 0.6 });
-    const lineMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
-
-    // Create a grid of intersecting streets
-    for (let x = -200; x <= 200; x += 60) {
-      const roadX = new THREE.Mesh(new THREE.PlaneGeometry(16, 600), roadMat);
+    const roadMat = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.6 });
+    for (let x = -350; x <= 350; x += 90) {
+      const roadX = new THREE.Mesh(new THREE.PlaneGeometry(22, 1200), roadMat);
       roadX.rotation.x = -Math.PI / 2;
       roadX.position.set(x, 0.02, 0);
       scene.add(roadX);
-
-      const stripeX = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 600), lineMat);
-      stripeX.rotation.x = -Math.PI / 2;
-      stripeX.position.set(x, 0.03, 0);
-      scene.add(stripeX);
     }
-
-    for (let z = -200; z <= 200; z += 60) {
-      const roadZ = new THREE.Mesh(new THREE.PlaneGeometry(600, 16), roadMat);
+    for (let z = -350; z <= 350; z += 90) {
+      const roadZ = new THREE.Mesh(new THREE.PlaneGeometry(1200, 22), roadMat);
       roadZ.rotation.x = -Math.PI / 2;
       roadZ.position.set(0, 0.02, z);
       scene.add(roadZ);
-
-      const stripeZ = new THREE.Mesh(new THREE.PlaneGeometry(600, 0.5), lineMat);
-      stripeZ.rotation.x = -Math.PI / 2;
-      stripeZ.position.set(0, 0.03, z);
-      scene.add(stripeZ);
     }
 
-    // Add low-poly procedural buildings block by block
-    const bldMat = new THREE.MeshStandardMaterial({ color: 0x1f1f2e, roughness: 0.5 });
-    for (let x = -180; x <= 180; x += 60) {
-      for (let z = -180; z <= 180; z += 60) {
-        // Skip exact center intersection space
-        if (Math.abs(x) < 20 && Math.abs(z) < 20) continue;
-        
-        const height = 15 + Math.abs(Math.sin(x * z) * 35);
-        const bldGeo = new THREE.BoxGeometry(35, height, 35);
-        const building = new THREE.Mesh(bldGeo, bldMat);
-        building.position.set(x + 30, height / 2, z + 30);
-        scene.add(building);
-      }
+    const psuBrick = new THREE.MeshStandardMaterial({ color: 0x7f1d1d, roughness: 0.5 });
+    const libraryLimestone = new THREE.MeshStandardMaterial({ color: 0xcbcdD0, roughness: 0.4 });
+    const tavernWood = new THREE.MeshStandardMaterial({ color: 0x3b1805, roughness: 0.7 });
+    const warmAmberGlow = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+    const whiteStone = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
+
+    function registerLandmark(name, group, x, z) {
+      group.position.set(x, 0, z);
+      scene.add(group);
+      landmarks.push({ name, x, z, radius: 75 });
+      let box = new THREE.Box3().setFromObject(group);
+      buildingBoxes.push({ name, box, centerX: x, centerZ: z });
     }
+
+    const oldMainGroup = new THREE.Group();
+    const omBody = new THREE.Mesh(new THREE.BoxGeometry(85, 28, 32), psuBrick);
+    omBody.position.y = 14; omBody.castShadow = true;
+    const omTower = new THREE.Mesh(new THREE.BoxGeometry(22, 52, 22), psuBrick);
+    omTower.position.set(0, 26, 0); omTower.castShadow = true;
+    const omSpire = new THREE.Mesh(new THREE.BoxGeometry(16, 14, 16), whiteStone);
+    omSpire.position.set(0, 59, 0);
+    oldMainGroup.add(omBody, omTower, omSpire);
+    registerLandmark("Old Main", oldMainGroup, 0, -180);
+
+    const libGroup = new THREE.Group();
+    const libBody = new THREE.Mesh(new THREE.BoxGeometry(90, 36, 50), libraryLimestone);
+    libBody.position.y = 18; libBody.castShadow = true;
+    for(let cx = -32; cx <= 32; cx += 16) {
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 24), whiteStone);
+      col.position.set(cx, 12, 26);
+      libGroup.add(col);
+    }
+    libGroup.add(libBody);
+    registerLandmark("Paterno Library", libGroup, -180, 0);
+
+    const picklesGroup = new THREE.Group();
+    const pBody = new THREE.Mesh(new THREE.BoxGeometry(50, 30, 45), psuBrick);
+    pBody.position.y = 15; pBody.castShadow = true;
+    const pAwning = new THREE.Mesh(new THREE.BoxGeometry(52, 3.5, 12), warmAmberGlow);
+    pAwning.position.set(0, 13, 25); pAwning.rotation.x = 0.35;
+    picklesGroup.add(pBody, pAwning);
+    registerLandmark("Bill Pickle's Tap Room", picklesGroup, 180, 180);
+
+    const phyrstGroup = new THREE.Group();
+    const barBody = new THREE.Mesh(new THREE.BoxGeometry(45, 28, 45), tavernWood);
+    barBody.position.y = 14; barBody.castShadow = true;
+    const barSign = new THREE.Mesh(new THREE.BoxGeometry(22, 4.5, 2), warmAmberGlow);
+    barSign.position.set(0, 18, 23);
+    phyrstGroup.add(barBody, barSign);
+    registerLandmark("The Phyrst", phyrstGroup, 180, -180);
+
+    const localGroup = new THREE.Group();
+    const lBody = new THREE.Mesh(new THREE.BoxGeometry(48, 32, 48), tavernWood);
+    lBody.position.y = 16; lBody.castShadow = true;
+    const lSign = new THREE.Mesh(new THREE.BoxGeometry(24, 4, 2), warmAmberGlow);
+    lSign.position.set(0, 19, 25);
+    localGroup.add(lBody, lSign);
+    registerLandmark("Local Saloon", localGroup, -180, 180);
   }
-  buildCityCourse();
+  buildPennStateCourse();
 
   function createCarModel(carClass) {
     const group = new THREE.Group();
-    if (carClass === 'Small') {
-      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x00e676, roughness: 0.3 });
-      const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 2.4), bodyMat);
-      mainBody.position.y = 0.4;
-      const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.45, 1.3), bodyMat);
-      cabin.position.set(0, 0.85, -0.1);
-      group.add(mainBody, cabin);
-    } else if (carClass === 'Large') {
-      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2979ff, roughness: 0.4 });
-      const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.9, 3.0), bodyMat);
-      mainBody.position.y = 0.55;
-      const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.65, 2.0), bodyMat);
-      cabin.position.set(0, 1.15, -0.1);
-      group.add(mainBody, cabin);
-    } else if (carClass === 'Bougie') {
-      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9, roughness: 0.1 });
-      const accentMat = new THREE.MeshStandardMaterial({ color: 0xffd700 });
-      const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 3.2), bodyMat);
-      mainBody.position.y = 0.35;
-      const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.4, 1.5), bodyMat);
-      cabin.position.set(0, 0.75, -0.2);
-      const underglow = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.05, 3.25), accentMat);
-      underglow.position.y = 0.12;
-      group.add(mainBody, cabin, underglow);
-    }
+    const bodyMat = new THREE.MeshStandardMaterial({ color: carClass === 'Small' ? 0x00e676 : (carClass === 'Large' ? 0x38bdf8 : 0x0f172a), roughness: 0.3 });
+    const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.6, 2.8), bodyMat);
+    mainBody.position.y = 0.4;
+    group.add(mainBody);
     return group;
   }
 
@@ -193,31 +283,27 @@
     if (!cars[myPlayerId]) {
       const carGroup = createCarModel(selectedClass);
       scene.add(carGroup);
-      cars[myPlayerId] = { group: carGroup, posX: 0, posZ: 0, rotationAngle: 0, accelerating: false };
+      cars[myPlayerId] = { group: carGroup, posX: 0, posZ: 0, rotationAngle: 0 };
     }
   });
 
   socket.on('sync-players', (players) => {
     for (let id in players) {
+      if (id === myPlayerId) continue;
       if (!cars[id]) {
         const pData = players[id];
         const carGroup = createCarModel(pData.carClass || 'Small');
         scene.add(carGroup);
-        cars[id] = { group: carGroup, posX: pData.posX || 0, posZ: pData.posZ || 0, rotationAngle: pData.rotationAngle || 0, accelerating: false };
+        cars[id] = { group: carGroup, posX: pData.posX || 0, posZ: pData.posZ || 0, rotationAngle: pData.rotationAngle || 0 };
       }
     }
   });
 
   socket.on('update-car-state', (data) => {
-    if (cars[data.playerId]) {
+    if (cars[data.playerId] && data.playerId !== myPlayerId) {
       cars[data.playerId].posX = data.posX;
       cars[data.playerId].posZ = data.posZ;
       cars[data.playerId].rotationAngle = data.rotationAngle;
-      cars[data.playerId].accelerating = data.accelerating;
-    } else {
-      const carGroup = createCarModel(data.carClass || 'Small');
-      scene.add(carGroup);
-      cars[data.playerId] = { group: carGroup, posX: data.posX, posZ: data.posZ, rotationAngle: data.rotationAngle, accelerating: data.accelerating };
     }
   });
 
@@ -228,28 +314,267 @@
     }
   });
 
+  socket.on('sync-passengers', (list) => {
+    activePassengers = list;
+    const currentIds = list.map(p => p.id);
+
+    for (let id in passengerMeshes) {
+      if (!currentIds.includes(Number(id))) {
+        scene.remove(passengerMeshes[id].mesh);
+        delete passengerMeshes[id];
+      }
+    }
+
+    list.forEach(p => {
+      if (!passengerMeshes[p.id] && !p.pickedUpBy) {
+        const geo = new THREE.ConeGeometry(1.2, 3, 4);
+        const mat = new THREE.MeshBasicMaterial({ color: 0x00e676 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(p.x, 1.5, p.z);
+        scene.add(mesh);
+        passengerMeshes[p.id] = { mesh, data: p };
+      }
+    });
+  });
+
+  socket.on('passenger-picked-up', (passenger) => {
+    currentPassengerInCar = passenger;
+    tripStartTime = Date.now();
+    
+    document.getElementById('mission-hud').style.display = 'flex';
+    document.getElementById('dest-label').innerText = passenger.destName;
+
+    if (passengerMeshes[passenger.id]) {
+      scene.remove(passengerMeshes[passenger.id].mesh);
+      delete passengerMeshes[passenger.id];
+    }
+
+    if (destinationMarkerMesh) scene.remove(destinationMarkerMesh);
+    const destGeo = new THREE.CylinderGeometry(4, 4, 0.5, 16);
+    const destMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+    destinationMarkerMesh = new THREE.Mesh(destGeo, destMat);
+    destinationMarkerMesh.position.set(passenger.destX, 0.1, passenger.destZ);
+    scene.add(destinationMarkerMesh);
+  });
+
+  socket.on('trip-completed', (data) => {
+    if (data.tip > 0) {
+      currentBalance += data.tip;
+      document.getElementById('hud-balance').innerText = `💰 $${currentBalance}`;
+      showTipPopup(data.tip);
+    }
+
+    currentPassengerInCar = null;
+    document.getElementById('mission-hud').style.display = 'none';
+    if (destinationMarkerMesh) {
+      scene.remove(destinationMarkerMesh);
+      destinationMarkerMesh = null;
+    }
+  });
+
+  function tryCancelRide() {
+    if (!currentPassengerInCar) return;
+    let now = Date.now();
+    let elapsed = now - lastCancelTime;
+
+    if (elapsed < COOLDOWN_MS) {
+      return;
+    }
+
+    lastCancelTime = now;
+    // Strictly forfeit ride with $0 payout (no money given on cancel)
+    socket.emit('complete-trip', { passengerId: currentPassengerInCar.id, carClass: selectedClass, tip: 0 });
+  }
+
+  function updateCooldownUI() {
+    if (!currentPassengerInCar) return;
+    let now = Date.now();
+    let elapsed = now - lastCancelTime;
+    let btn = document.getElementById('mission-hud');
+    let txt = document.getElementById('cooldown-text');
+
+    if (elapsed < COOLDOWN_MS) {
+      let percent = (elapsed / COOLDOWN_MS) * 100;
+      let secsLeft = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+      btn.style.background = `conic-gradient(#ef4444 ${percent}%, #1e293b ${percent}%)`;
+      txt.innerText = `${secsLeft}s`;
+    } else {
+      btn.style.background = '#1e293b';
+      txt.innerText = `CANCEL`;
+    }
+  }
+
+  function showTipPopup(amount) {
+    if (!myPlayerId || !cars[myPlayerId]) return;
+    const layer = document.getElementById('marker-layer');
+    const carGroup = cars[myPlayerId].group;
+
+    let vector = carGroup.position.clone();
+    vector.y += 2.0;
+    vector.project(camera);
+
+    let x = (vector.x *  .5 + .5) * window.innerWidth;
+    let y = (vector.y * -.5 + .5) * window.innerHeight;
+
+    const popup = document.createElement('div');
+    popup.className = 'tip-popup';
+    popup.style.left = `${x}px`;
+    popup.style.top = `${y}px`;
+    popup.innerText = `+$${amount}!`;
+    layer.appendChild(popup);
+
+    setTimeout(() => popup.remove(), 1000);
+  }
+
   function launchShift() {
+    const driverName = document.getElementById('driver-name').value.trim() || 'Driver';
     document.getElementById('start-overlay').style.display = 'none';
-    const gasPedal = document.getElementById('gas-pedal');
-    gasPedal.style.display = 'flex';
 
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
       DeviceOrientationEvent.requestPermission().catch(err => console.warn(err));
     }
 
-    socket.emit('join-game', { carClass: selectedClass });
+    socket.emit('join-game', { name: driverName, carClass: selectedClass });
 
     window.addEventListener('deviceorientation', (e) => {
       let steeringVal = e.beta || 0;
-      steeringInput = Math.max(-1, Math.min(1, steeringVal / 25));
+      let isUpsideDown = window.orientation === -90 || window.screen?.orientation?.angle === 270;
+      steeringInput = Math.max(-1, Math.min(1, (steeringVal / 25) * (isUpsideDown ? -1 : 1)));
+    }, true);
+
+    // Group Fights ONLY happen for Large cars with group size 4, rare occurrence, cleared with 1 shake
+    window.addEventListener('devicemotion', (e) => {
+      if (selectedClass !== 'Large' || !currentPassengerInCar || currentPassengerInCar.size !== 4) return;
+      let now = Date.now();
+      if (now - tripStartTime < 4000) return; // Wait 4s into trip
+
+      let acc = e.accelerationIncludingGravity || e.acceleration;
+      if (!acc) return;
+      let force = Math.abs(acc.x || 0) + Math.abs(acc.y || 0) + Math.abs(acc.z || 0);
+
+      // Single shake clears it easily if force > 20
+      if (isFighting && force > 20) {
+        isFighting = false;
+        lastFightTriggerTime = now;
+        document.getElementById('fight-warning').style.display = 'none';
+      } else if (!isFighting && (now - lastFightTriggerTime > 30000) && Math.random() < 0.0004) {
+        isFighting = true;
+        document.getElementById('fight-warning').style.display = 'flex';
+      }
     }, true);
   }
 
   const gasPedal = document.getElementById('gas-pedal');
-  gasPedal.addEventListener('touchstart', (e) => { e.preventDefault(); isAccelerating = true; gasPedal.classList.add('active'); });
-  gasPedal.addEventListener('touchend', (e) => { e.preventDefault(); isAccelerating = false; gasPedal.classList.remove('active'); });
-  gasPedal.addEventListener('mousedown', () => { isAccelerating = true; gasPedal.classList.add('active'); });
-  gasPedal.addEventListener('mouseup', () => { isAccelerating = false; gasPedal.classList.remove('active'); });
+  const reversePedal = document.getElementById('reverse-pedal');
+
+  function evaluateTouchPositions(e) {
+    let forwardActive = false;
+    let reverseActive = false;
+
+    for (let i = 0; i < e.touches.length; i++) {
+      let touch = e.touches[i];
+      let elem = document.elementFromPoint(touch.clientX, touch.clientY);
+      
+      if (elem) {
+        if (elem === gasPedal || elem.closest('#gas-pedal')) forwardActive = true;
+        if (elem === reversePedal || elem.closest('#reverse-pedal')) reverseActive = true;
+      }
+    }
+
+    if (forwardActive && !reverseActive) {
+      moveDirection = 1;
+      gasPedal.classList.add('active');
+      reversePedal.classList.remove('active');
+    } else if (reverseActive && !forwardActive) {
+      moveDirection = -1;
+      reversePedal.classList.add('active');
+      gasPedal.classList.remove('active');
+    } else {
+      moveDirection = 0;
+      gasPedal.classList.remove('active');
+      reversePedal.classList.remove('active');
+    }
+  }
+
+  window.addEventListener('touchstart', evaluateTouchPositions, { passive: false });
+  window.addEventListener('touchmove', evaluateTouchPositions, { passive: false });
+  window.addEventListener('touchend', evaluateTouchPositions, { passive: false });
+
+  gasPedal.addEventListener('mousedown', () => { moveDirection = 1; gasPedal.classList.add('active'); });
+  gasPedal.addEventListener('mouseup', () => { moveDirection = 0; gasPedal.classList.remove('active'); });
+  reversePedal.addEventListener('mousedown', () => { moveDirection = -1; reversePedal.classList.add('active'); });
+  reversePedal.addEventListener('mouseup', () => { moveDirection = 0; reversePedal.classList.remove('active'); });
+
+  function updateHUD(x, z) {
+    const hud = document.getElementById('street-hud');
+    let street = "E College Ave";
+    if (Math.abs(z % 180) < 45) street = "W Beaver Ave";
+    else if (Math.abs(x % 180) < 45) street = "S Allen St";
+    else if (x > 200) street = "S Garner St";
+    else if (x < -200) street = "N Burrowes Rd";
+
+    let nearbyName = "Downtown State College";
+    for (let l of landmarks) {
+      let dist = Math.sqrt((x - l.x) ** 2 + (z - l.z) ** 2);
+      if (dist < l.radius) {
+        nearbyName = l.name;
+        break;
+      }
+    }
+    hud.innerHTML = `📍 ${street} (${nearbyName})`;
+  }
+
+  function updatePassengerTimers() {
+    const layer = document.getElementById('marker-layer');
+    let html = '';
+    const now = Date.now();
+
+    for (let id in passengerMeshes) {
+      const item = passengerMeshes[id];
+      const p = item.data;
+      let timeLeft = Math.max(0, Math.ceil((23000 - (now - p.spawnTime)) / 1000));
+
+      let vector = item.mesh.position.clone();
+      vector.project(camera);
+
+      let x = (vector.x *  .5 + .5) * window.innerWidth;
+      let y = (vector.y * -.5 + .5) * window.innerHeight;
+
+      if (vector.z < 1) {
+        html += `<div class="floating-tag" style="left:${x}px; top:${y}px;">👥${p.size} ⏱️${timeLeft}s</div>`;
+      }
+    }
+    
+    const existingPopups = layer.querySelectorAll('.tip-popup');
+    layer.innerHTML = html;
+    existingPopups.forEach(pop => layer.appendChild(pop));
+  }
+
+  function checkGameTriggers(carVector) {
+    if (!currentPassengerInCar) {
+      for (let p of activePassengers) {
+        if (!p.pickedUpBy) {
+          let dist = Math.sqrt((carVector.x - p.x) ** 2 + (carVector.z - p.z) ** 2);
+          if (dist < 15) {
+            socket.emit('claim-passenger', { passengerId: p.id, carClass: selectedClass });
+            break;
+          }
+        }
+      }
+    } else if (currentPassengerInCar) {
+      for (let b of buildingBoxes) {
+        if (b.name === currentPassengerInCar.destName) {
+          // Generous radius check around destination building center for smooth drop-off
+          let distToDest = Math.sqrt((carVector.x - b.centerX) ** 2 + (carVector.z - b.centerZ) ** 2);
+          if (b.box.containsPoint(carVector) || distToDest < 35) {
+            let payout = (selectedClass === 'Bougie') ? 150 : currentPassengerInCar.tipValue;
+            socket.emit('complete-trip', { passengerId: currentPassengerInCar.id, carClass: selectedClass, tip: payout });
+            break;
+          }
+        }
+      }
+    }
+  }
 
   function animate() {
     requestAnimationFrame(animate);
@@ -258,43 +583,56 @@
     if (selectedClass === 'Large') { speed = 0.35; turnSpeed = 0.035; }
     if (selectedClass === 'Bougie') { speed = 0.65; turnSpeed = 0.055; }
 
-    if (isAccelerating) {
-      rotationAngle -= steeringInput * turnSpeed;
-      posX += Math.sin(rotationAngle) * speed;
-      posZ += Math.cos(rotationAngle) * speed;
+    if (moveDirection !== 0 && !isFighting) {
+      let nextX = posX + Math.sin(rotationAngle) * speed * moveDirection;
+      let nextZ = posZ + Math.cos(rotationAngle) * speed * moveDirection;
+
+      let nextVector = new THREE.Vector3(nextX, 0, nextZ);
+      let collided = false;
+      for (let b of buildingBoxes) {
+        if (b.box.containsPoint(nextVector)) {
+          collided = true;
+          break;
+        }
+      }
+
+      if (!collided) {
+        if (moveDirection > 0) {
+          rotationAngle -= steeringInput * turnSpeed;
+        } else {
+          rotationAngle += steeringInput * turnSpeed;
+        }
+        posX = Math.max(-320, Math.min(320, nextX));
+        posZ = Math.max(-320, Math.min(320, nextZ));
+      }
     }
 
     if (myPlayerId && cars[myPlayerId]) {
       cars[myPlayerId].posX = posX;
       cars[myPlayerId].posZ = posZ;
       cars[myPlayerId].rotationAngle = rotationAngle;
-      cars[myPlayerId].accelerating = isAccelerating;
 
-      socket.emit('steering-input', {
-        playerId: myPlayerId, carClass: selectedClass,
-        posX, posZ, rotationAngle, accelerating: isAccelerating
-      });
+      socket.emit('steering-input', { playerId: myPlayerId, carClass: selectedClass, posX, posZ, rotationAngle, accelerating: (moveDirection !== 0) });
+
+      let carVector = new THREE.Vector3(posX, 0, posZ);
+      checkGameTriggers(carVector);
+      updatePassengerTimers();
+      updateHUD(posX, posZ);
+      updateCooldownUI();
     }
 
     for (let id in cars) {
       let data = cars[id];
-      let carGroup = data.group;
-      carGroup.position.x = data.posX;
-      carGroup.position.z = data.posZ;
-      carGroup.rotation.y = data.rotationAngle;
+      data.group.position.set(data.posX, 0, data.posZ);
+      data.group.rotation.y = data.rotationAngle;
 
       if (id === myPlayerId) {
-        // True 3rd-person chase camera locked securely behind the car
-        let camDist = 7, camHeight = 2.8;
-        camera.position.x = carGroup.position.x - Math.sin(rotationAngle) * camDist;
-        camera.position.z = carGroup.position.z - Math.cos(rotationAngle) * camDist;
-        camera.position.y = carGroup.position.y + camHeight;
-        
-        camera.lookAt(
-          carGroup.position.x + Math.sin(rotationAngle) * 3,
-          carGroup.position.y + 0.5,
-          carGroup.position.z + Math.cos(rotationAngle) * 3
+        camera.position.set(
+          data.posX - Math.sin(data.rotationAngle) * 7.5,
+          data.group.position.y + 3.0,
+          data.posZ - Math.cos(data.rotationAngle) * 7.5
         );
+        camera.lookAt(data.posX + Math.sin(data.rotationAngle) * 3, data.group.position.y + 0.5, data.posZ + Math.cos(data.rotationAngle) * 3);
       }
     }
     renderer.render(scene, camera);

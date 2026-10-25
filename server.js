@@ -1,79 +1,165 @@
 const express = require('express');
 const http = require('http');
-const { Server } = require('socket.io');
 const path = require('path');
+const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Serve static files from 'public' folder
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 
-const players = {};
+app.get('/host', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'host.html'));
+});
 
-// Fun local quotes for the live announcer box (no AI required!)
-const announcerLines = [
-  "Rider rated 1 star for aggressive drifting.",
-  "Surge pricing is in effect! Speed up!",
-  "Driver missed the turn, recalculating route...",
-  "Passenger is throwing up in the back seat!",
-  "Looking for a parking spot? Good luck.",
-  "Driver is playing lo-fi beats to chill/drive to.",
-  "Watch out for pedestrians, your rating is dropping!",
-  "Arriving in 3 minutes... make it 30 seconds."
+let players = {};
+let passengers = [];
+let nextPassengerId = 1;
+
+const landmarkNames = ["Old Main", "Paterno Library", "Bill Pickle's Tap Room", "The Phyrst", "Local Saloon"];
+// Building coordinates to prevent spawning inside them
+const buildingZones = [
+  { x: 0, z: -180, w: 90, d: 40 },
+  { x: -180, z: 0, w: 100, d: 60 },
+  { x: 180, z: 180, w: 60, d: 50 },
+  { x: 180, z: -180, w: 50, d: 50 },
+  { x: -180, z: 180, w: 55, d: 55 }
 ];
 
-// Periodically broadcast a random local announcer line to the host
-setInterval(() => {
-  if (Object.keys(players).length > 0) {
-    const randomQuote = announcerLines[Math.floor(Math.random() * announcerLines.length)];
-    io.emit('announcer-speak', { text: randomQuote });
+function isInsideBuilding(x, z) {
+  for (let b of buildingZones) {
+    if (Math.abs(x - b.x) < b.w / 2 + 10 && Math.abs(z - b.z) < b.d / 2 + 10) {
+      return true;
+    }
   }
-}, 7000);
+  return false;
+}
+
+// Spawn passengers ensuring they never spawn inside buildings
+setInterval(() => {
+  if (passengers.length < 6) {
+    const sizes = [1, 2, 3, 4];
+    const size = sizes[Math.floor(Math.random() * sizes.length)];
+    
+    let x, z;
+    let attempts = 0;
+    do {
+      x = (Math.floor(Math.random() * 5) - 2) * 90;
+      z = (Math.floor(Math.random() * 5) - 2) * 90;
+      attempts++;
+    } while (isInsideBuilding(x, z) && attempts < 10);
+
+    let destX, destZ;
+    do {
+      destX = (Math.floor(Math.random() * 5) - 2) * 90;
+      destZ = (Math.floor(Math.random() * 5) - 2) * 90;
+    } while (destX === x && destZ === z);
+    
+    const randomDestName = landmarkNames[Math.floor(Math.random() * landmarkNames.length)];
+    let baseTip = size * 25;
+
+    passengers.push({
+      id: nextPassengerId++,
+      x: x, z: z,
+      destX: destX, destZ: destZ,
+      destName: randomDestName,
+      size: size,
+      tipValue: baseTip,
+      spawnTime: Date.now(),
+      pickedUpBy: null
+    });
+    
+    io.emit('sync-passengers', passengers);
+  }
+}, 8000);
+
+setInterval(() => {
+  const now = Date.now();
+  const prevLength = passengers.length;
+  passengers = passengers.filter(p => p.pickedUpBy || (now - p.spawnTime < 23000));
+  
+  if (passengers.length !== prevLength) {
+    io.emit('sync-passengers', passengers);
+  }
+}, 1000);
+
+function broadcastLeaderboard() {
+  const leaderboardData = Object.values(players).map(p => ({
+    name: p.name,
+    tips: p.tips,
+    carClass: p.carClass
+  })).sort((a, b) => b.tips - a.tips);
+
+  io.emit('update-leaderboard', leaderboardData);
+}
 
 io.on('connection', (socket) => {
-  console.log(`Device connected: ${socket.id}`);
-
   socket.on('join-game', (data) => {
     players[socket.id] = {
       playerId: socket.id,
+      name: data.name || 'Driver',
       carClass: data.carClass || 'Small',
-      posX: 0,
-      posZ: 0,
-      rotationAngle: 0,
-      accelerating: false
+      tips: 100,
+      posX: 0, posZ: 0, rotationAngle: 0, accelerating: false
     };
 
-    // Notify host that a player joined
-    io.emit('player-joined', { playerId: socket.id });
-    // Sync current player states
     socket.emit('assigned-player', { playerId: socket.id });
     io.emit('sync-players', players);
+    socket.emit('sync-passengers', passengers);
+    broadcastLeaderboard();
   });
 
   socket.on('steering-input', (data) => {
-    if (players[data.playerId]) {
-      players[data.playerId].posX = data.posX;
-      players[data.playerId].posZ = data.posZ;
-      players[data.playerId].rotationAngle = data.rotationAngle;
-      players[data.playerId].accelerating = data.accelerating;
+    if (players[socket.id]) {
+      players[socket.id].posX = data.posX;
+      players[socket.id].posZ = data.posZ;
+      players[socket.id].rotationAngle = data.rotationAngle;
+      players[socket.id].accelerating = data.accelerating;
+      socket.broadcast.emit('update-car-state', data);
+    }
+  });
 
-      // Broadcast movement to all other clients
-      socket.broadcast.emit('update-car-state', players[data.playerId]);
+  socket.on('claim-passenger', (data) => {
+    const { passengerId, carClass } = data;
+    const passenger = passengers.find(p => p.id === passengerId);
+
+    if (passenger && !passenger.pickedUpBy) {
+      let maxCap = (carClass === 'Small') ? 2 : (carClass === 'Large' ? 4 : 1);
+      if (passenger.size <= maxCap) {
+        passenger.pickedUpBy = socket.id;
+        io.emit('sync-passengers', passengers);
+        socket.emit('passenger-picked-up', passenger);
+      }
+    }
+  });
+
+  socket.on('complete-trip', (data) => {
+    const { passengerId, carClass } = data;
+    const pIndex = passengers.findIndex(p => p.id === passengerId);
+
+    if (pIndex !== -1) {
+      const passenger = passengers[pIndex];
+      passengers.splice(pIndex, 1);
+      io.emit('sync-passengers', passengers);
+
+      let finalTip = carClass === 'Bougie' ? 150 : passenger.tipValue;
+      if (players[socket.id]) {
+        players[socket.id].tips += finalTip;
+        broadcastLeaderboard();
+      }
+
+      socket.emit('trip-completed', { tip: finalTip });
     }
   });
 
   socket.on('disconnect', () => {
-    console.log(`Device disconnected: ${socket.id}`);
-    if (players[socket.id]) {
-      delete players[socket.id];
-      io.emit('player-left', { playerId: socket.id });
-    }
+    delete players[socket.id];
+    io.emit('player-left', { playerId: socket.id });
+    broadcastLeaderboard();
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+server.listen(3000, () => {
+  console.log('UberRacer server running on http://localhost:3000');
 });
